@@ -38,10 +38,23 @@ struct loginScreenView: View {
                 print("Email: \(email)")
                 print("Password: \(password)")
             }
+            // Sign up button
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
+            .background(Color.black)
+            .foregroundColor(.orange)
+            .cornerRadius(8)
+            .disabled(email.isEmpty || password.isEmpty)
+            
+            Button("Sign up") {
+                print("Email: \(email)")
+                print("Password: \(password)")
+            }
+            
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.black)
+            .foregroundColor(.orange)
             .cornerRadius(8)
             .disabled(email.isEmpty || password.isEmpty)
             
