@@ -13,10 +13,11 @@ struct loginScreenView: View {
         
     var body: some View {
         VStack(spacing: 20) {
-            Text("Login")
+            Text("Smart Sport ")
+                .position(x: 150, y: 100)
                 .font(.largeTitle)
                 .fontWeight(.bold)
-                .padding(.bottom, 30)
+                .padding(.bottom, 90)
             
             // Email TextField
             TextField("Email", text: $email)
@@ -60,7 +61,7 @@ struct loginScreenView: View {
             
             Spacer()
         }
-        .padding(30)
+        .padding(50)
         .background(.orange)
     }
     }
