@@ -58,6 +58,13 @@ struct loginScreenView: View {
             .foregroundColor(.orange)
             .cornerRadius(8)
             .disabled(email.isEmpty || password.isEmpty)
+
+            NavigationLink("Forgot Password?") {
+                    ForgotPasswordView()
+                }
+                .font(.footnote)
+                .foregroundColor(.blue)
+                .padding(.top, 10)
             
             Spacer()
         }
