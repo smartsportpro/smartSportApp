@@ -1,9 +1,3 @@
-//
-//  profileView.swift
-//  smartSport
-//
-//  Created by Geovanni Parra on 10/25/25.
-//
 
 import SwiftUI
 

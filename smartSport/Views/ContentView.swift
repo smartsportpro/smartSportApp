@@ -1,9 +1,3 @@
-//
-//  ContentView.swift
-//  smartSport
-//
-//  Created by Geovanni Parra on 10/9/25.
-//
 
 import SwiftUI
 
