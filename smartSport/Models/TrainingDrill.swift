@@ -37,7 +37,7 @@ enum DrillDifficulty: String, Codable, CaseIterable {
 }
 
 enum PositionFocus: String, Codable, CaseIterable {
-    case guard = "Guard"
+    case guards = "Guard"
     case forward = "Forward"
     case center = "Center"
     case all = "All"
