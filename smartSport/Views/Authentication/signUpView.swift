@@ -4,15 +4,68 @@
 //
 //  Created by Geovanni Parra on 11/4/25.
 //
-
 import SwiftUI
 
 struct signUpView: View {
+    @State private var email: String = ""
+    @State private var password: String = ""
+        
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack(spacing: 20) {
+            Text("Smart Sport ")
+                .position(x: 150, y: 100)
+                .font(.largeTitle)
+                .fontWeight(.bold)
+                .padding(.bottom, 90)
+            
+            // Email TextField
+            TextField("Email", text: $email)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .keyboardType(.emailAddress)
+                .autocapitalization(.none)
+            
+            // Password SecureField
+            SecureField("Password", text: $password)
+                .padding()
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+            
+            // Login Button
+            Button("Login") {
+                // Handle login action here
+                print("Email: \(email)")
+                print("Password: \(password)")
+            }
+            // Sign up button
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.black)
+            .foregroundColor(.orange)
+            .cornerRadius(8)
+            .disabled(email.isEmpty || password.isEmpty)
+            
+            Button("Sign up") {
+                print("Email: \(email)")
+                print("Password: \(password)")
+            }
+            
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(Color.black)
+            .foregroundColor(.orange)
+            .cornerRadius(8)
+            .disabled(email.isEmpty || password.isEmpty)
+            
+            Spacer()
+        }
+        .padding(50)
+        .background(.orange)
     }
-}
+    }
 
-#Preview {
-    signUpView()
-}
+    #Preview {
+        signUpView()
+    }
+
