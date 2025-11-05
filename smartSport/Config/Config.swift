@@ -1,17 +1,16 @@
 import Foundation
 
 struct Config {
-    // TODO: Replace these placeholder values with actual API keys from Supabase dashboard
-    // Get your Supabase URL and anon key from: https://app.supabase.com/project/_/settings/api
-    static let supabaseURL = ProcessInfo.processInfo.environment["SUPABASE_URL"] ?? "PLACEHOLDER-https://your-project.supabase.co"
-    static let supabaseKey = ProcessInfo.processInfo.environment["SUPABASE_KEY"] ?? "PLACEHOLDER-your-supabase-anon-key"
+    // API keys are stored in Secrets.xcconfig (not committed to git)
+    // Values are read from Info.plist which pulls from the xcconfig file
+    static let supabaseURL = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String ?? "https://your-project.supabase.co"
+    static let supabaseKey = Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String ?? "your-supabase-anon-key"
 
-    // TODO: Update this to your backend API URL (default is localhost for development)
-    static let apiBaseURL = ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "http://localhost:5000"
+    // Backend API URL
+    static let apiBaseURL = Bundle.main.infoDictionary?["API_BASE_URL"] as? String ?? "http://localhost:5000"
 
-    // TODO: Replace with actual YouTube Data API v3 key
-    // Get your API key from: https://console.cloud.google.com/apis/credentials
-    static let youtubeAPIKey = ProcessInfo.processInfo.environment["YOUTUBE_API_KEY"] ?? "PLACEHOLDER-your-youtube-api-key"
+    // YouTube Data API v3 key
+    static let youtubeAPIKey = Bundle.main.infoDictionary?["YOUTUBE_API_KEY"] as? String ?? "your-youtube-api-key"
 
     struct App {
         static let name = "SmartSport"

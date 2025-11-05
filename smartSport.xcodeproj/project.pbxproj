@@ -8,10 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		A9D230C32EB903B600B480BD /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C22EB903B600B480BD /* Algorithms */; };
+		D81712A12EBB01110065737C /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = D81712A02EBB01110065737C /* Secrets.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A9A13B0E2E9812E200222A3C /* smartSport.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = smartSport.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D81712A02EBB01110065737C /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +41,7 @@
 			children = (
 				A9A13B102E9812E200222A3C /* smartSport */,
 				A9A13B0F2E9812E200222A3C /* Products */,
+				D81712A02EBB01110065737C /* Secrets.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -119,6 +122,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D81712A12EBB01110065737C /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -256,6 +260,7 @@
 		};
 		A9A13B1D2E9812E400222A3C /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D81712A02EBB01110065737C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -286,6 +291,7 @@
 		};
 		A9A13B1E2E9812E400222A3C /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = D81712A02EBB01110065737C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
