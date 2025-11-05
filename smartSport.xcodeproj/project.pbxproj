@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		A9D230C32EB903B600B480BD /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C22EB903B600B480BD /* Algorithms */; };
-		D81712A12EBB01110065737C /* Secrets.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = D81712A02EBB01110065737C /* Secrets.xcconfig */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -16,9 +15,22 @@
 		D81712A02EBB01110065737C /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		D81712A62EBB0CBF0065737C /* Exceptions for "smartSport" folder in "smartSport" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A9A13B0D2E9812E200222A3C /* smartSport */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		A9A13B102E9812E200222A3C /* smartSport */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				D81712A62EBB0CBF0065737C /* Exceptions for "smartSport" folder in "smartSport" target */,
+			);
 			path = smartSport;
 			sourceTree = "<group>";
 		};
@@ -87,7 +99,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1620;
-				LastUpgradeCheck = 1620;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					A9A13B0D2E9812E200222A3C = {
 						CreatedOnToolsVersion = 16.2;
@@ -122,7 +134,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D81712A12EBB01110065737C /* Secrets.xcconfig in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -197,6 +208,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -253,6 +265,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};

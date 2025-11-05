@@ -1,72 +1,100 @@
-//
-//  loginView.swift
-//  smartSport
-//
-//  Created by Geovanni Parra on 10/19/25.
-//
-
 import SwiftUI
 
 struct loginScreenView: View {
+    @EnvironmentObject var authViewModel: AuthViewModel
     @State private var email: String = ""
     @State private var password: String = ""
-        
+    @State private var showSignUp = false
+    @State private var showErrorAlert = false
+
     var body: some View {
-        VStack(spacing: 20) {
-            Text("Smart Sport ")
-                .position(x: 150, y: 100)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .padding(.bottom, 90)
-            
-            // Email TextField
-            TextField("Email", text: $email)
-                .padding()
-                .background(Color(.systemGray6))
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Smart Sport")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .padding(.top, 60)
+                    .padding(.bottom, 40)
+
+                VStack(spacing: 16) {
+                    TextField("Email", text: $email)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .textContentType(.emailAddress)
+
+                    SecureField("Password", text: $password)
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .textContentType(.password)
+                }
+                .padding(.horizontal)
+
+                Button {
+                    signIn()
+                } label: {
+                    if authViewModel.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    } else {
+                        Text("Login")
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                }
+                .background(isValidInput ? Color.black : Color.gray)
+                .foregroundColor(.orange)
                 .cornerRadius(8)
-                .keyboardType(.emailAddress)
-                .autocapitalization(.none)
-            
-            // Password SecureField
-            SecureField("Password", text: $password)
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            
-            // Login Button
-            Button("Login") {
-                // Handle login action here
-                print("Email: \(email)")
-                print("Password: \(password)")
+                .disabled(!isValidInput || authViewModel.isLoading)
+                .padding(.horizontal)
+                .padding(.top, 20)
+
+                Button {
+                    showSignUp = true
+                } label: {
+                    Text("Don't have an account? Sign Up")
+                        .foregroundColor(.black)
+                        .underline()
+                }
+                .padding(.top, 10)
+
+                Spacer()
             }
-            // Sign up button
-            .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.black)
-            .foregroundColor(.orange)
-            .cornerRadius(8)
-            .disabled(email.isEmpty || password.isEmpty)
-            
-            Button("Sign up") {
-                print("Email: \(email)")
-                print("Password: \(password)")
+            .background(Color.orange.ignoresSafeArea())
+            .alert("Error", isPresented: $showErrorAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(authViewModel.errorMessage ?? "Failed to sign in")
             }
-            
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(Color.black)
-            .foregroundColor(.orange)
-            .cornerRadius(8)
-            .disabled(email.isEmpty || password.isEmpty)
-            
-            Spacer()
+            .sheet(isPresented: $showSignUp) {
+                signUpView()
+            }
         }
-        .padding(50)
-        .background(.orange)
-    }
     }
 
-    #Preview {
-        loginScreenView()
+    private var isValidInput: Bool {
+        !email.isEmpty && !password.isEmpty
     }
+
+    private func signIn() {
+        Task {
+            await authViewModel.signIn(email: email, password: password)
+
+            if authViewModel.errorMessage != nil {
+                showErrorAlert = true
+            }
+        }
+    }
+}
+
+#Preview {
+    loginScreenView()
+        .environmentObject(AuthViewModel())
+}
 
