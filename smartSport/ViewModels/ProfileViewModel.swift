@@ -17,6 +17,13 @@ class ProfileViewModel: ObservableObject {
 
         do {
             profile = try await profileService.getProfile(userId: userId)
+
+            // Also load measurables and stats
+            async let measurablesResult = try? await profileService.getMeasurables(userId: userId)
+            async let statsResult = try? await profileService.getStats(userId: userId)
+
+            measurables = await measurablesResult
+            stats = await statsResult
         } catch {
             errorMessage = error.localizedDescription
         }

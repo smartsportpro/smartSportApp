@@ -45,4 +45,18 @@ class ProfileService {
             body: stats
         )
     }
+
+    func getMeasurables(userId: UUID) async throws -> UserMeasurables {
+        return try await apiService.request(
+            endpoint: "/api/profile/\(userId.uuidString)/measurables",
+            method: .get
+        )
+    }
+
+    func getStats(userId: UUID) async throws -> UserStats {
+        return try await apiService.request(
+            endpoint: "/api/profile/\(userId.uuidString)/stats",
+            method: .get
+        )
+    }
 }
