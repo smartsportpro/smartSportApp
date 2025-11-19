@@ -1,15 +1,55 @@
+//
+//  ContentView.swift
+//  smartSport
+//
+//  Main app content with TabView navigation
+//
 
 import SwiftUI
 
 struct ContentView: View {
+    // Store user ID from UserDefaults (set during login)
+    @AppStorage("currentUserId") private var userIdString: String = ""
+    @State private var selectedTab = 0
+
+    // Compute userId from stored string
+    private var userId: UUID {
+        UUID(uuidString: userIdString) ?? UUID()
+    }
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        TabView(selection: $selectedTab) {
+            HomeView(userId: userId)
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(0)
+
+            MatchView()
+                .tabItem {
+                    Label("Match", systemImage: "person.2.fill")
+                }
+                .tag(1)
+
+            StatsView(userId: userId)
+                .tabItem {
+                    Label("Stats", systemImage: "chart.bar.fill")
+                }
+                .tag(2)
+
+            TrainingView()
+                .tabItem {
+                    Label("Training", systemImage: "figure.basketball")
+                }
+                .tag(3)
+
+            ProfileView(userId: userId)
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+                .tag(4)
         }
-        .padding()
+        .tint(.orange) // Orange accent color for selected tab
     }
 }
 
