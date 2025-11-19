@@ -215,14 +215,15 @@ def get_user_stats(user_id: str):
 @app.post("/api/stats")
 def add_game_stats(game_stats: GameStats):
     """
-    Add a new game stat record
+    Add a new game stat record and automatically update user's season averages
     """
     try:
         # Convert Pydantic model to dict, excluding None values
         data = game_stats.dict(exclude_none=True)
 
         # Convert UUID to string for Supabase
-        data['user_id'] = str(data['user_id'])
+        user_id = str(data['user_id'])
+        data['user_id'] = user_id
         # Convert date to string
         data['date'] = str(data['date'])
 
@@ -231,6 +232,56 @@ def add_game_stats(game_stats: GameStats):
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create game record")
+
+        # Automatically update season averages in user_stats table
+        # Get all games for this user
+        all_games = supabase.table("game_stats") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .execute()
+
+        games = all_games.data
+
+        if games and len(games) > 0:
+            total_games = len(games)
+
+            # Calculate season averages
+            ppg = round(sum(g.get('points', 0) or 0 for g in games) / total_games, 1)
+            rpg = round(sum(g.get('rebounds', 0) or 0 for g in games) / total_games, 1)
+            apg = round(sum(g.get('assists', 0) or 0 for g in games) / total_games, 1)
+
+            fg_percents = [g.get('fg_percent', 0) or 0 for g in games if g.get('fg_percent') is not None]
+            fg_percent = round(sum(fg_percents) / len(fg_percents), 1) if fg_percents else 0.0
+
+            three_p_percents = [g.get('three_p_percent', 0) or 0 for g in games if g.get('three_p_percent') is not None]
+            three_p_percent = round(sum(three_p_percents) / len(three_p_percents), 1) if three_p_percents else 0.0
+
+            stats_data = {
+                "user_id": user_id,
+                "ppg": ppg,
+                "rpg": rpg,
+                "apg": apg,
+                "fg_percent": fg_percent,
+                "three_p_percent": three_p_percent
+            }
+
+            # Check if user_stats exists
+            existing_stats = supabase.table("user_stats") \
+                .select("*") \
+                .eq("user_id", user_id) \
+                .execute()
+
+            if existing_stats.data and len(existing_stats.data) > 0:
+                # Update existing stats
+                supabase.table("user_stats") \
+                    .update(stats_data) \
+                    .eq("user_id", user_id) \
+                    .execute()
+                print(f"✅ Updated season averages for user {user_id}")
+            else:
+                # Insert new stats
+                supabase.table("user_stats").insert(stats_data).execute()
+                print(f"✅ Created season averages for user {user_id}")
 
         return {
             "status": "created",
@@ -246,9 +297,20 @@ def add_game_stats(game_stats: GameStats):
 @app.delete("/api/stats/{game_id}")
 def delete_game_stats(game_id: str):
     """
-    Delete a game record
+    Delete a game record and automatically update user's season averages
     """
     try:
+        # First, get the game to know which user to update
+        game_to_delete = supabase.table("game_stats") \
+            .select("user_id") \
+            .eq("id", game_id) \
+            .execute()
+
+        if not game_to_delete.data:
+            raise HTTPException(status_code=404, detail="Game record not found")
+
+        user_id = game_to_delete.data[0]['user_id']
+
         # Delete from game_stats
         result = supabase.table("game_stats") \
             .delete() \
@@ -257,6 +319,58 @@ def delete_game_stats(game_id: str):
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Game record not found")
+
+        # Recalculate season averages after deletion
+        # Get remaining games for this user
+        remaining_games = supabase.table("game_stats") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .execute()
+
+        games = remaining_games.data
+
+        if games and len(games) > 0:
+            total_games = len(games)
+
+            # Calculate new season averages
+            ppg = round(sum(g.get('points', 0) or 0 for g in games) / total_games, 1)
+            rpg = round(sum(g.get('rebounds', 0) or 0 for g in games) / total_games, 1)
+            apg = round(sum(g.get('assists', 0) or 0 for g in games) / total_games, 1)
+
+            fg_percents = [g.get('fg_percent', 0) or 0 for g in games if g.get('fg_percent') is not None]
+            fg_percent = round(sum(fg_percents) / len(fg_percents), 1) if fg_percents else 0.0
+
+            three_p_percents = [g.get('three_p_percent', 0) or 0 for g in games if g.get('three_p_percent') is not None]
+            three_p_percent = round(sum(three_p_percents) / len(three_p_percents), 1) if three_p_percents else 0.0
+
+            stats_data = {
+                "ppg": ppg,
+                "rpg": rpg,
+                "apg": apg,
+                "fg_percent": fg_percent,
+                "three_p_percent": three_p_percent
+            }
+
+            # Update user_stats
+            supabase.table("user_stats") \
+                .update(stats_data) \
+                .eq("user_id", user_id) \
+                .execute()
+            print(f"✅ Recalculated season averages after deletion for user {user_id}")
+        else:
+            # No games left, reset stats to zero
+            stats_data = {
+                "ppg": 0.0,
+                "rpg": 0.0,
+                "apg": 0.0,
+                "fg_percent": 0.0,
+                "three_p_percent": 0.0
+            }
+            supabase.table("user_stats") \
+                .update(stats_data) \
+                .eq("user_id", user_id) \
+                .execute()
+            print(f"✅ Reset season averages to zero for user {user_id}")
 
         return {"status": "deleted"}
 
