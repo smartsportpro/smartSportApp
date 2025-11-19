@@ -1,16 +1,20 @@
 import Foundation
 
 struct Config {
-    // API keys are stored in Secrets.xcconfig (not committed to git)
-    // Values are read from Info.plist which pulls from the xcconfig file
-    static let supabaseURL = Bundle.main.infoDictionary?["SUPABASE_URL"] as? String ?? "https://your-project.supabase.co"
-    static let supabaseKey = Bundle.main.infoDictionary?["SUPABASE_KEY"] as? String ?? "your-supabase-anon-key"
+    // API keys are stored in Secrets.plist (not committed to git)
+    private static let secrets: [String: Any] = {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let dict = NSDictionary(contentsOfFile: path) as? [String: Any] else {
+            print("⚠️ WARNING: Secrets.plist not found or invalid")
+            return [:]
+        }
+        return dict
+    }()
 
-    // Backend API URL
-    static let apiBaseURL = Bundle.main.infoDictionary?["API_BASE_URL"] as? String ?? "http://localhost:5000"
-
-    // YouTube Data API v3 key
-    static let youtubeAPIKey = Bundle.main.infoDictionary?["YOUTUBE_API_KEY"] as? String ?? "your-youtube-api-key"
+    static let supabaseURL = secrets["SUPABASE_URL"] as? String ?? ""
+    static let supabaseKey = secrets["SUPABASE_KEY"] as? String ?? ""
+    static let apiBaseURL = secrets["API_BASE_URL"] as? String ?? "http://localhost:5000"
+    static let youtubeAPIKey = secrets["YOUTUBE_API_KEY"] as? String ?? ""
 
     struct App {
         static let name = "SmartSport"

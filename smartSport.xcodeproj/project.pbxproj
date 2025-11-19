@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		A9D230C32EB903B600B480BD /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C22EB903B600B480BD /* Algorithms */; };
+		A9D230C52EB9067700B480BD /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C62EB9067700B480BD /* Supabase */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +43,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A9D230C32EB903B600B480BD /* Algorithms in Frameworks */,
+				A9D230C52EB9067700B480BD /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +88,7 @@
 			name = smartSport;
 			packageProductDependencies = (
 				A9D230C22EB903B600B480BD /* Algorithms */,
+				A9D230C62EB9067700B480BD /* Supabase */,
 			);
 			productName = smartSport;
 			productReference = A9A13B0E2E9812E200222A3C /* smartSport.app */;
@@ -273,7 +276,6 @@
 		};
 		A9A13B1D2E9812E400222A3C /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D81712A02EBB01110065737C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -304,7 +306,6 @@
 		};
 		A9A13B1E2E9812E400222A3C /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D81712A02EBB01110065737C /* Secrets.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -380,6 +381,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A9D230C12EB903B600B480BD /* XCRemoteSwiftPackageReference "swift-algorithms" */;
 			productName = Algorithms;
+		};
+		A9D230C62EB9067700B480BD /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A9D230C42EB9067700B480BD /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

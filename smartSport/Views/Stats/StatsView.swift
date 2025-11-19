@@ -1,9 +1,19 @@
 import SwiftUI
+import Charts
 
 struct StatsView: View {
     @StateObject private var viewModel = StatsViewModel()
     @State private var showAddGameSheet = false
+    @State private var selectedChartMetric: ChartMetric = .ppg
     let userId: UUID
+
+    enum ChartMetric: String, CaseIterable {
+        case ppg = "PPG"
+        case rpg = "RPG"
+        case apg = "APG"
+        case fgPercent = "FG%"
+        case threePPercent = "3P%"
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,6 +27,10 @@ struct StatsView: View {
                         VStack(spacing: 20) {
                             if let seasonAverages = viewModel.seasonAverages {
                                 seasonAveragesCard(stats: seasonAverages)
+                            }
+
+                            if !viewModel.games.isEmpty {
+                                statChartSection
                             }
 
                             gamesListSection
@@ -73,6 +87,7 @@ struct StatsView: View {
                 statItem(label: "RPG", value: stats.rpg?.formatted(decimalPlaces: 1) ?? "0.0")
                 statItem(label: "APG", value: stats.apg?.formatted(decimalPlaces: 1) ?? "0.0")
                 statItem(label: "FG%", value: stats.fgPercent.map { "\($0.formatted(decimalPlaces: 1))%" } ?? "0.0%")
+                statItem(label: "3P%", value: stats.threePPercent.map { "\($0.formatted(decimalPlaces: 1))%" } ?? "0.0%")
             }
         }
         .padding()
@@ -90,6 +105,74 @@ struct StatsView: View {
             Text(label)
                 .font(.caption)
                 .foregroundColor(.gray)
+        }
+    }
+
+    // MARK: - Stat Chart Section
+
+    private var statChartSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Performance Trends")
+                .font(.headline)
+                .foregroundColor(.gray)
+
+            Picker("Metric", selection: $selectedChartMetric) {
+                ForEach(ChartMetric.allCases, id: \.self) { metric in
+                    Text(metric.rawValue).tag(metric)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Chart {
+                ForEach(viewModel.games.sorted(by: { $0.gameDate < $1.gameDate })) { game in
+                    if let value = getChartValue(for: game, metric: selectedChartMetric) {
+                        LineMark(
+                            x: .value("Date", game.gameDate),
+                            y: .value(selectedChartMetric.rawValue, value)
+                        )
+                        .foregroundStyle(Color.orange)
+                        .interpolationMethod(.catmullRom)
+
+                        PointMark(
+                            x: .value("Date", game.gameDate),
+                            y: .value(selectedChartMetric.rawValue, value)
+                        )
+                        .foregroundStyle(Color.orange)
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic) { _ in
+                    AxisValueLabel(format: .dateTime.month().day())
+                    AxisGridLine()
+                }
+            }
+            .chartYAxis {
+                AxisMarks { value in
+                    AxisValueLabel()
+                    AxisGridLine()
+                }
+            }
+            .frame(height: 200)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.1), radius: 5, x: 0, y: 2)
+    }
+
+    private func getChartValue(for game: GameStats, metric: ChartMetric) -> Double? {
+        switch metric {
+        case .ppg:
+            return game.points.map { Double($0) }
+        case .rpg:
+            return game.rebounds.map { Double($0) }
+        case .apg:
+            return game.assists.map { Double($0) }
+        case .fgPercent:
+            return game.fgPercent
+        case .threePPercent:
+            return game.threePPercent
         }
     }
 

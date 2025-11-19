@@ -8,6 +8,7 @@ xcuserdata/
 
 ## Secrets and API Keys
 Secrets.xcconfig
+Secrets.plist
 *.secret.*
 .env
 
@@ -49,3 +50,17 @@ Carthage/Build/
 
 # Mac
 .DS_Store
+
+# Claude Code (AI assistant files - not needed in repo)
+.claude/
+.agent/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
