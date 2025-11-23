@@ -340,11 +340,11 @@ struct ProfileCreationView: View {
                     .font(.system(size: 60))
                     .foregroundColor(.green)
 
-                Text("Profile Created!")
+                Text("Success!")
                     .font(.title2)
                     .fontWeight(.bold)
 
-                Text("Let's find your matches")
+                Text("Welcome to SmartSport")
                     .foregroundColor(.gray)
             }
             .padding(40)

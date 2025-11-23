@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct profileView: View {
+struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @State private var showEditSheet = false
     let userId: UUID
@@ -162,5 +162,5 @@ struct profileView: View {
 }
 
 #Preview {
-    profileView(userId: UUID())
+    ProfileView(userId: UUID())
 }

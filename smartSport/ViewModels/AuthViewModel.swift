@@ -17,7 +17,9 @@ class AuthViewModel: ObservableObject {
         do {
             let user = try await authService.signUp(email: email, password: password)
             currentUser = user
-            isAuthenticated = true
+            // Don't set isAuthenticated = true yet - wait until profile is created
+            // Save user ID to UserDefaults for app-wide access
+            UserDefaults.standard.set(user.id.uuidString, forKey: "currentUserId")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -33,6 +35,8 @@ class AuthViewModel: ObservableObject {
             let user = try await authService.signIn(email: email, password: password)
             currentUser = user
             isAuthenticated = true
+            // Save user ID to UserDefaults for app-wide access
+            UserDefaults.standard.set(user.id.uuidString, forKey: "currentUserId")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -47,6 +51,8 @@ class AuthViewModel: ObservableObject {
             try await authService.signOut()
             currentUser = nil
             isAuthenticated = false
+            // Clear user ID from UserDefaults
+            UserDefaults.standard.removeObject(forKey: "currentUserId")
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -72,9 +78,13 @@ class AuthViewModel: ObservableObject {
             if let user = try await authService.getCurrentUser() {
                 currentUser = user
                 isAuthenticated = true
+                // Save user ID to UserDefaults for app-wide access
+                UserDefaults.standard.set(user.id.uuidString, forKey: "currentUserId")
             }
         } catch {
             isAuthenticated = false
+            // Clear user ID if not authenticated
+            UserDefaults.standard.removeObject(forKey: "currentUserId")
         }
     }
 }

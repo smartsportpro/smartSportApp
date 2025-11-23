@@ -84,6 +84,34 @@ def save_profile(profile: Profile):
         print(f"❌ Error saving profile: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.put("/api/profile/{user_id}")
+def update_profile(user_id: str, profile: Profile):
+    """Update user profile"""
+    try:
+        # Normalize UUID to lowercase
+        user_id_lower = user_id.lower()
+
+        # Get data from profile, excluding user_id (it's in the path)
+        data = profile.dict(exclude={'user_id'})
+        print(f"✅ Updating profile for {user_id_lower}: {data}")
+
+        # Update the profile
+        result = supabase.table("user_profiles") \
+            .update(data) \
+            .eq("user_id", user_id_lower) \
+            .execute()
+
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        print(f"✅ Profile updated: {result.data}")
+        return format_timestamps(result.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.put("/api/profile/{user_id}/measurables")
 def update_measurables(user_id: str, measurables: Measurables):
     """
@@ -154,6 +182,69 @@ def update_stats(user_id: str, stats: Stats):
         return format_timestamps(response)
     except Exception as e:
         print(f"❌ Error updating stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/profile/{user_id}")
+def get_profile(user_id: str):
+    """Get user profile by user_id"""
+    try:
+        # Normalize UUID to lowercase for case-insensitive matching
+        user_id_lower = user_id.lower()
+        result = supabase.table("user_profiles") \
+            .select("*") \
+            .eq("user_id", user_id_lower) \
+            .execute()
+
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail="Profile not found")
+
+        return format_timestamps(result.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/profile/{user_id}/measurables")
+def get_measurables(user_id: str):
+    """Get user measurables by user_id"""
+    try:
+        # Normalize UUID to lowercase for case-insensitive matching
+        user_id_lower = user_id.lower()
+        result = supabase.table("user_measurables") \
+            .select("*") \
+            .eq("user_id", user_id_lower) \
+            .execute()
+
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail="Measurables not found")
+
+        return format_timestamps(result.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting measurables: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/profile/{user_id}/stats")
+def get_stats(user_id: str):
+    """Get user stats by user_id"""
+    try:
+        # Normalize UUID to lowercase for case-insensitive matching
+        user_id_lower = user_id.lower()
+        result = supabase.table("user_stats") \
+            .select("*") \
+            .eq("user_id", user_id_lower) \
+            .execute()
+
+        if not result.data or len(result.data) == 0:
+            raise HTTPException(status_code=404, detail="Stats not found")
+
+        return format_timestamps(result.data[0])
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/stats/{user_id}")
