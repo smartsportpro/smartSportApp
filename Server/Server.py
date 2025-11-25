@@ -95,6 +95,7 @@ class MatchResult(BaseModel):
     hs_apg: Optional[float] = None
     hs_rpg: Optional[float] = None
     hs_fg_percent: Optional[float] = None
+    hs_3p_percent: Optional[float] = None
     photo_url: Optional[str] = None
 
 @app.post("/api/profile")
@@ -707,6 +708,7 @@ def find_matches(request: MatchRequest):
                 hs_apg=player.get('hs_senior_apg'),
                 hs_rpg=player.get('hs_senior_rpg'),
                 hs_fg_percent=player.get('hs_senior_fg_percent'),
+                hs_3p_percent=player.get('hs_senior_3p_percent'),
                 photo_url=player.get('photo_url')
             ))
 

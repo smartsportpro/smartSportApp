@@ -343,24 +343,72 @@ struct PlayerDetailView: View {
                     .cornerRadius(16)
                     .padding(.horizontal)
 
-                    // High School Stats
+                    // Measurables
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("High School Senior Stats")
+                        Text("Measurables")
                             .font(.headline)
+
+                        HStack(spacing: 40) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Height")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Text(player.heightFormatted)
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Weight")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Text("\(player.collegeWeightLbs) lbs")
+                                    .font(.title2)
+                                    .fontWeight(.semibold)
+                            }
+
+                            Spacer()
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(16)
+                    .padding(.horizontal)
+
+                    // High School Performance
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("High School Performance")
+                            .font(.headline)
+
+                        Text("High School: [To Be Added]")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .italic()
+
+                        Divider()
+
+                        Text("Senior Year Stats")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.secondary)
 
                         VStack(spacing: 12) {
                             if let ppg = player.hsPpg {
                                 statRow(label: "Points Per Game", value: String(format: "%.1f", ppg))
                             }
-                            if let apg = player.hsApg {
-                                statRow(label: "Assists Per Game", value: String(format: "%.1f", apg))
-                            }
                             if let rpg = player.hsRpg {
                                 statRow(label: "Rebounds Per Game", value: String(format: "%.1f", rpg))
+                            }
+                            if let apg = player.hsApg {
+                                statRow(label: "Assists Per Game", value: String(format: "%.1f", apg))
                             }
                             if let fg = player.hsFgPercent {
                                 statRow(label: "Field Goal %", value: String(format: "%.1f%%", fg))
                             }
+                            if let threePt = player.hs3pPercent {
+                                statRow(label: "3-Point %", value: String(format: "%.1f%%", threePt))
+                            }
                         }
                     }
                     .padding()
@@ -369,14 +417,24 @@ struct PlayerDetailView: View {
                     .cornerRadius(16)
                     .padding(.horizontal)
 
-                    // Physical Attributes
+                    // Comparison Section
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Physical Attributes")
+                        Text("You vs \(player.name)")
                             .font(.headline)
 
-                        VStack(spacing: 12) {
-                            statRow(label: "Height", value: player.heightFormatted)
-                            statRow(label: "Weight", value: "\(player.collegeWeightLbs) lbs")
+                        Text("Complete your profile to see how your stats compare")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .italic()
+
+                        Divider()
+
+                        // Placeholder comparison table
+                        VStack(spacing: 8) {
+                            comparisonRow(label: "PPG", yourValue: "--", theirValue: player.hsPpg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
+                            comparisonRow(label: "RPG", yourValue: "--", theirValue: player.hsRpg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
+                            comparisonRow(label: "APG", yourValue: "--", theirValue: player.hsApg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
+                            comparisonRow(label: "FG%", yourValue: "--", theirValue: player.hsFgPercent.map { String(format: "%.1f%%", $0) } ?? "--", isWeaker: false)
                         }
                     }
                     .padding()
@@ -385,9 +443,9 @@ struct PlayerDetailView: View {
                     .cornerRadius(16)
                     .padding(.horizontal)
 
-                    // Coming Soon: Videos
+                    // Watch Film
                     VStack(spacing: 12) {
-                        Text("Highlight Videos")
+                        Text("Watch Film")
                             .font(.headline)
 
                         Text("Coming Soon")
@@ -424,6 +482,32 @@ struct PlayerDetailView: View {
             Text(value)
                 .fontWeight(.semibold)
         }
+    }
+
+    private func comparisonRow(label: String, yourValue: String, theirValue: String, isWeaker: Bool) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .frame(width: 60, alignment: .leading)
+
+            Text(yourValue)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(isWeaker ? .red : .primary)
+                .frame(maxWidth: .infinity)
+
+            Text("vs")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 30)
+
+            Text(theirValue)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 4)
     }
 }
 

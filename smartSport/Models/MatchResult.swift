@@ -13,6 +13,7 @@ struct MatchResult: Codable, Identifiable {
     let hsApg: Double?
     let hsRpg: Double?
     let hsFgPercent: Double?
+    let hs3pPercent: Double?
     let photoUrl: String?
 
     var id: UUID { playerId }
@@ -30,6 +31,7 @@ struct MatchResult: Codable, Identifiable {
         case hsApg = "hs_apg"
         case hsRpg = "hs_rpg"
         case hsFgPercent = "hs_fg_percent"
+        case hs3pPercent = "hs_3p_percent"
         case photoUrl = "photo_url"
     }
 
