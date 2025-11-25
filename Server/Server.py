@@ -1,11 +1,14 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from supabase import create_client, Client
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import date
 import os
 from dotenv import load_dotenv
+from sklearn.neighbors import NearestNeighbors
+from sklearn.preprocessing import StandardScaler
+import numpy as np
 
 # Load environment variables from .env file
 load_dotenv()
@@ -67,6 +70,32 @@ class GameStats(BaseModel):
     blocks: Optional[int] = None
     fg_percent: Optional[float] = None
     three_p_percent: Optional[float] = None
+
+class MatchRequest(BaseModel):
+    user_id: Optional[UUID] = None
+    height_inches: Optional[int] = None
+    weight_lbs: Optional[int] = None
+    position: Optional[str] = None  # Guard/Forward/Big
+    ppg: Optional[float] = None
+    apg: Optional[float] = None
+    rpg: Optional[float] = None
+    fg_percent: Optional[float] = None
+    target_division: Optional[str] = None  # D1/D2/D3/NAIA
+
+class MatchResult(BaseModel):
+    player_id: UUID
+    name: str
+    college: str
+    division: str
+    position: str
+    similarity_score: float  # 0-100
+    college_height_inches: int
+    college_weight_lbs: int
+    hs_ppg: Optional[float] = None
+    hs_apg: Optional[float] = None
+    hs_rpg: Optional[float] = None
+    hs_fg_percent: Optional[float] = None
+    photo_url: Optional[str] = None
 
 @app.post("/api/profile")
 def save_profile(profile: Profile):
@@ -469,4 +498,228 @@ def delete_game_stats(game_id: str):
         raise
     except Exception as e:
         print(f"❌ Error deleting game stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== PLAYER MATCHING ====================
+
+def encode_position(position: str) -> int:
+    """Encode position for K-NN: Guard=1, Forward=2, Big=3"""
+    position_map = {
+        'Guard': 1,
+        'Forward': 2,
+        'Big': 3,
+        'Center': 3  # Normalize Center to Big
+    }
+    return position_map.get(position, 2)  # Default to Forward
+
+def encode_division(division: str) -> int:
+    """Encode division for K-NN: D1=4, D2=3, D3=2, NAIA=1"""
+    division_map = {
+        'D1': 4,
+        'D2': 3,
+        'D3': 2,
+        'NAIA': 1
+    }
+    return division_map.get(division, 2)  # Default to D3
+
+@app.post("/api/match", response_model=List[MatchResult])
+def find_matches(request: MatchRequest):
+    """
+    Find top 5 similar college players using K-NN algorithm with division weighting.
+
+    Features used (8 total):
+    - height_inches
+    - weight_lbs
+    - position (encoded: Guard=1, Forward=2, Big=3)
+    - ppg (points per game)
+    - apg (assists per game)
+    - rpg (rebounds per game)
+    - fg_percent (field goal percentage)
+    - division (encoded: D1=4, D2=3, D3=2, NAIA=1)
+
+    Division weighting: 8% boost for matches in target division
+    """
+    try:
+        print(f"✅ Received match request: {request}")
+
+        # Step 1: Fetch user data if user_id provided
+        user_data = None
+        if request.user_id:
+            user_id_str = str(request.user_id).lower()
+
+            # Fetch profile
+            profile_result = supabase.table("user_profiles").select("*").eq("user_id", user_id_str).execute()
+            profile = profile_result.data[0] if profile_result.data else None
+
+            # Fetch measurables
+            measurables_result = supabase.table("user_measurables").select("*").eq("user_id", user_id_str).execute()
+            measurables = measurables_result.data[0] if measurables_result.data else None
+
+            # Fetch stats
+            stats_result = supabase.table("user_stats").select("*").eq("user_id", user_id_str).execute()
+            stats = stats_result.data[0] if stats_result.data else None
+
+            if profile and measurables and stats:
+                user_data = {
+                    'height_inches': measurables.get('height_inches'),
+                    'weight_lbs': measurables.get('weight_lbs'),
+                    'position': profile.get('position'),
+                    'ppg': stats.get('ppg'),
+                    'apg': stats.get('apg'),
+                    'rpg': stats.get('rpg'),
+                    'fg_percent': stats.get('fg_percent'),
+                    'target_division': profile.get('target_division')
+                }
+                print(f"✅ Fetched user data: {user_data}")
+
+        # Step 2: Use provided data or user data
+        height = request.height_inches or (user_data['height_inches'] if user_data else None)
+        weight = request.weight_lbs or (user_data['weight_lbs'] if user_data else None)
+        position = request.position or (user_data['position'] if user_data else None)
+        ppg = request.ppg or (user_data['ppg'] if user_data else None)
+        apg = request.apg or (user_data['apg'] if user_data else None)
+        rpg = request.rpg or (user_data['rpg'] if user_data else None)
+        fg_percent = request.fg_percent or (user_data['fg_percent'] if user_data else None)
+        target_division = request.target_division or (user_data['target_division'] if user_data else None)
+
+        # Validate required fields
+        if not all([height, weight, position, ppg is not None, apg is not None, rpg is not None, fg_percent is not None]):
+            raise HTTPException(status_code=400, detail="Missing required fields for matching")
+
+        print(f"✅ Using data: height={height}, weight={weight}, position={position}, ppg={ppg}, apg={apg}, rpg={rpg}, fg_percent={fg_percent}, target_division={target_division}")
+
+        # Step 3: Fetch ALL college players from database
+        college_players_result = supabase.table("college_players").select("*").execute()
+        college_players = college_players_result.data
+
+        if not college_players or len(college_players) < 5:
+            raise HTTPException(status_code=404, detail="Insufficient college players in database for matching")
+
+        print(f"✅ Fetched {len(college_players)} college players")
+
+        # Step 4: Prepare feature matrix for K-NN
+        # Features: [height, weight, position, ppg, apg, rpg, fg_percent, division]
+        user_features = [
+            height,
+            weight,
+            encode_position(position),
+            ppg,
+            apg,
+            rpg,
+            fg_percent,
+            encode_division(target_division) if target_division else 2
+        ]
+
+        college_features = []
+        valid_players = []
+
+        for player in college_players:
+            # Skip players with missing critical data
+            # Note: CSV uses hs_senior_* and division_level field names
+            if not all([
+                player.get('college_height_inches'),
+                player.get('college_weight_lbs'),
+                player.get('position'),
+                player.get('hs_senior_ppg') is not None,
+                player.get('hs_senior_apg') is not None,
+                player.get('hs_senior_rpg') is not None,
+                player.get('hs_senior_fg_percent') is not None,
+                player.get('division_level')
+            ]):
+                continue
+
+            features = [
+                player['college_height_inches'],
+                player['college_weight_lbs'],
+                encode_position(player['position']),
+                player['hs_senior_ppg'],
+                player['hs_senior_apg'],
+                player['hs_senior_rpg'],
+                player['hs_senior_fg_percent'],
+                encode_division(player['division_level'])
+            ]
+            college_features.append(features)
+            valid_players.append(player)
+
+        if len(valid_players) < 5:
+            raise HTTPException(status_code=404, detail="Insufficient valid college players for matching")
+
+        print(f"✅ Prepared features for {len(valid_players)} valid players")
+
+        # Step 5: Normalize features using StandardScaler
+        scaler = StandardScaler()
+        college_features_scaled = scaler.fit_transform(college_features)
+        user_features_scaled = scaler.transform([user_features])
+
+        # Step 6: Run K-NN to find top 10 candidates
+        k = min(10, len(valid_players))
+        knn = NearestNeighbors(n_neighbors=k, metric='euclidean')
+        knn.fit(college_features_scaled)
+        distances, indices = knn.kneighbors(user_features_scaled)
+
+        print(f"✅ K-NN found {k} nearest neighbors")
+
+        # Step 7: Apply division weighting and calculate similarity scores
+        # Find max distance for normalization
+        max_distance = np.max(distances[0]) if len(distances[0]) > 0 else 1.0
+
+        candidates = []
+        for i, (distance, index) in enumerate(zip(distances[0], indices[0])):
+            player = valid_players[index]
+
+            # Convert distance to similarity score (0-100)
+            # Normalize: closest match = 100%, furthest in top 10 = lower score
+            # Formula: 100 * (1 - distance / max_distance)
+            if max_distance > 0:
+                similarity = 100 * (1 - (distance / max_distance))
+            else:
+                similarity = 100.0
+
+            # Apply 8% boost if player is in target division
+            if target_division and player['division_level'] == target_division:
+                similarity = min(100, similarity * 1.08)
+                print(f"   Applied 8% boost to {player['name']} (target division: {target_division})")
+
+            candidates.append({
+                'player': player,
+                'similarity': similarity,
+                'distance': distance
+            })
+
+        # Step 8: Sort by similarity (descending) and return top 5
+        candidates.sort(key=lambda x: x['similarity'], reverse=True)
+        top_5 = candidates[:5]
+
+        # Step 9: Format results
+        results = []
+        for candidate in top_5:
+            player = candidate['player']
+            results.append(MatchResult(
+                player_id=UUID(player['id']),
+                name=player['name'],
+                college=player.get('college_name'),
+                division=player['division_level'],
+                position=player['position'],
+                similarity_score=round(candidate['similarity'], 1),
+                college_height_inches=player['college_height_inches'],
+                college_weight_lbs=player['college_weight_lbs'],
+                hs_ppg=player.get('hs_senior_ppg'),
+                hs_apg=player.get('hs_senior_apg'),
+                hs_rpg=player.get('hs_senior_rpg'),
+                hs_fg_percent=player.get('hs_senior_fg_percent'),
+                photo_url=player.get('photo_url')
+            ))
+
+        print(f"✅ Returning top 5 matches:")
+        for i, result in enumerate(results, 1):
+            print(f"   {i}. {result.name} ({result.division}) - {result.similarity_score}% match")
+
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error finding matches: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

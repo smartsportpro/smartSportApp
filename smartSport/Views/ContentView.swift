@@ -19,13 +19,15 @@ struct ContentView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(userId: userId)
+            HomeView(userId: userId, onFindMatch: {
+                selectedTab = 1 // Switch to Match tab
+            })
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }
                 .tag(0)
 
-            MatchView()
+            MatchView(userId: userId)
                 .tabItem {
                     Label("Match", systemImage: "person.2.fill")
                 }

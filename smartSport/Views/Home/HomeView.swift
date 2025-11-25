@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HomeView: View {
     let userId: UUID
+    let onFindMatch: () -> Void
     @StateObject private var viewModel = HomeViewModel()
 
     var body: some View {
@@ -101,7 +102,7 @@ struct HomeView: View {
 
     private func findMatchButton() -> some View {
         Button {
-            // Phase 2 implementation
+            onFindMatch()
         } label: {
             HStack {
                 Image(systemName: "person.2.fill")
@@ -110,11 +111,10 @@ struct HomeView: View {
             }
             .frame(maxWidth: .infinity)
             .padding()
-            .background(Color.orange.opacity(0.3))
-            .foregroundColor(.orange)
+            .background(Color.orange)
+            .foregroundColor(.white)
             .cornerRadius(12)
         }
-        .disabled(true)
     }
 
     private func lastGameCard(game: GameStats) -> some View {
@@ -185,5 +185,5 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView(userId: UUID())
+    HomeView(userId: UUID(), onFindMatch: {})
 }

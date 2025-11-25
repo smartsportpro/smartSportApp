@@ -54,12 +54,13 @@ class MatchingService {
             targetDivision: targetDivision?.rawValue
         )
 
-        let response: MatchResponse = try await apiService.request(
+        // Backend returns array directly, not wrapped in object
+        let matches: [MatchResult] = try await apiService.request(
             endpoint: "/api/match",
             method: .post,
             body: request
         )
 
-        return response.matches
+        return matches
     }
 }

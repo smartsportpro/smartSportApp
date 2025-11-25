@@ -23,11 +23,17 @@ struct UserProfile: Codable, Identifiable {
 }
 
 enum Position: String, Codable, CaseIterable {
+    // User positions (specific)
     case pg = "PG"
     case sg = "SG"
     case sf = "SF"
     case pf = "PF"
     case c = "C"
+
+    // College positions (general) - used by matching algorithm
+    case `guard` = "Guard"
+    case forward = "Forward"
+    case big = "Big"
 
     var fullName: String {
         switch self {
@@ -36,6 +42,9 @@ enum Position: String, Codable, CaseIterable {
         case .sf: return "Small Forward"
         case .pf: return "Power Forward"
         case .c: return "Center"
+        case .`guard`: return "Guard"
+        case .forward: return "Forward"
+        case .big: return "Big"
         }
     }
 
@@ -46,6 +55,19 @@ enum Position: String, Codable, CaseIterable {
         case .sf: return 3
         case .pf: return 4
         case .c: return 5
+        case .`guard`: return 1
+        case .forward: return 2
+        case .big: return 3
+        }
+    }
+
+    // Convert user position to college position for matching
+    var collegePosition: Position {
+        switch self {
+        case .pg, .sg: return .`guard`
+        case .sf, .pf: return .forward
+        case .c: return .big
+        case .`guard`, .forward, .big: return self
         }
     }
 }
