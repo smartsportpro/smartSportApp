@@ -46,8 +46,45 @@ class APIService {
         }
 
         let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(T.self, from: data)
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let container = try decoder.singleValueContainer()
+            let dateString = try container.decode(String.self)
+
+            // Backend format: "2025-11-30T21:59:13.114174" (no timezone, fractional seconds)
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+
+            // Fallback: ISO8601 with fractional seconds and timezone
+            let fractionalFormatter = ISO8601DateFormatter()
+            fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractionalFormatter.date(from: dateString) {
+                return date
+            }
+
+            // Fallback: Standard ISO8601
+            let standardFormatter = ISO8601DateFormatter()
+            if let date = standardFormatter.date(from: dateString) {
+                return date
+            }
+
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Cannot decode date string \(dateString)")
+        }
+
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            // Log the actual error and raw data for debugging
+            print("❌ Decoding error: \(error)")
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📄 Raw JSON response: \(jsonString.prefix(500))")
+            }
+            throw error
+        }
     }
 }
 

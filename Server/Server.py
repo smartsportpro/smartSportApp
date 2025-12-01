@@ -98,6 +98,35 @@ class MatchResult(BaseModel):
     hs_3p_percent: Optional[float] = None
     photo_url: Optional[str] = None
 
+class DrillRecommendationRequest(BaseModel):
+    """Request for personalized drill recommendations"""
+    user_id: Optional[UUID] = None
+    # Direct stats input (alternative to user_id lookup)
+    position: Optional[str] = None
+    ppg: Optional[float] = None
+    apg: Optional[float] = None
+    rpg: Optional[float] = None
+    fg_percent: Optional[float] = None
+    target_division: Optional[str] = None
+
+class DrillRecommendation(BaseModel):
+    """Individual drill with recommendation reason"""
+    id: UUID
+    name: str
+    description: str
+    category: str
+    difficulty: Optional[str] = None
+    position_focus: Optional[str] = None
+    video_url: Optional[str] = None
+    created_at: str
+    why_recommended: str  # Explanation for why this drill was chosen
+
+class DrillRecommendationResponse(BaseModel):
+    """Response containing recommended drills"""
+    drills: List[DrillRecommendation]
+    total_count: int
+    is_generic: bool = False  # True if user has no stats, recommendations are position-based only
+
 @app.post("/api/profile")
 def save_profile(profile: Profile):
     try:
@@ -722,6 +751,403 @@ def find_matches(request: MatchRequest):
         raise
     except Exception as e:
         print(f"❌ Error finding matches: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# TRAINING DRILL RECOMMENDATION FUNCTIONS
+# ============================================
+
+def normalize_position(position: str) -> str:
+    """
+    Convert specific positions to college position groups.
+
+    Args:
+        position: User position (PG, SG, SF, PF, C, Guard, Forward, Big)
+
+    Returns:
+        Normalized position group: Guard, Forward, or Big
+    """
+    guard_positions = ['PG', 'SG', 'Guard']
+    forward_positions = ['SF', 'PF', 'Forward']
+    big_positions = ['C', 'Big', 'Center']
+
+    if position in guard_positions:
+        return 'Guard'
+    elif position in forward_positions:
+        return 'Forward'
+    elif position in big_positions:
+        return 'Big'
+    else:
+        return 'All'
+
+def get_drills_by_category(
+    category: str,
+    position_focus: str,
+    limit: int = 2
+) -> List[dict]:
+    """
+    Fetch drills from database by category and position focus.
+    Randomize to provide variety across requests.
+
+    Args:
+        category: Drill category (Shooting, Ball-Handling, Defense, Conditioning, Passing)
+        position_focus: Position group (Guard, Forward, Big, All)
+        limit: Number of drills to return
+
+    Returns:
+        List of drill dictionaries
+    """
+    try:
+        # Query drills matching category
+        query = supabase.table("training_drills").select("*").eq("category", category)
+
+        # Filter by position focus (include 'All' position drills)
+        if position_focus != 'All':
+            query = query.or_(f"position_focus.eq.{position_focus},position_focus.eq.All")
+
+        result = query.execute()
+        drills = result.data
+
+        if not drills:
+            print(f"⚠️ No drills found for category={category}, position={position_focus}")
+            return []
+
+        # Randomize for variety
+        import random
+        random.shuffle(drills)
+
+        return drills[:limit]
+
+    except Exception as e:
+        print(f"❌ Error fetching drills for category {category}: {e}")
+        return []
+
+def get_drill_recommendations(
+    position: str,
+    ppg: float,
+    apg: float,
+    rpg: float,
+    fg_percent: float,
+    target_division: Optional[str] = None,
+    is_generic: bool = False
+) -> tuple[List[DrillRecommendation], bool]:
+    """
+    Rule-based drill recommendation algorithm.
+
+    Args:
+        position: User position
+        ppg: Points per game
+        apg: Assists per game
+        rpg: Rebounds per game
+        fg_percent: Field goal percentage
+        target_division: Target division (D1/D2/D3/NAIA)
+        is_generic: If True, provide generic recommendations without stat-based logic
+
+    Returns:
+        Tuple of (list of recommended drills, is_generic flag)
+
+    Rules:
+        1. FG% < 40% → Add 2 Shooting drills
+        2. Position in [PG, SG, Guard] AND APG < 3 → Add 2 Passing drills
+        3. Position in [PG, SG, Guard] → Add 2 Ball-Handling drills
+        4. Position in [SF, PF, Forward] → Add 1 Defense, 1 Shooting
+        5. Position in [C, Big] → Add 1 Defense, 1 Conditioning
+        6. ALWAYS add 1 Conditioning drill
+    """
+    recommendations = []
+    reasons = []
+
+    # Normalize position to college position groups
+    position_group = normalize_position(position)
+
+    if is_generic:
+        # Generic recommendations based on position only
+        print(f"✅ Generating generic recommendations for {position_group}")
+
+        if position_group == 'Guard':
+            # Guards: 2 Ball-Handling + 2 Shooting + 1 Passing + 1 Defense + 1 Conditioning
+            ballhandling_drills = get_drills_by_category('Ball-Handling', 'Guard', limit=2)
+            shooting_drills = get_drills_by_category('Shooting', 'Guard', limit=2)
+            passing_drills = get_drills_by_category('Passing', 'Guard', limit=1)
+            defense_drills = get_drills_by_category('Defense', 'All', limit=1)
+            conditioning_drills = get_drills_by_category('Conditioning', 'All', limit=1)
+
+            for drill in ballhandling_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Elite ball-handling is essential for guards at every college level.'})
+            for drill in shooting_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Consistent shooting separates good guards from great ones.'})
+            for drill in passing_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Playmaking ability makes guards valuable to college teams.'})
+            for drill in defense_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Guards who can defend earn playing time.'})
+            for drill in conditioning_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'College basketball demands elite conditioning.'})
+
+            recommendations.extend(ballhandling_drills)
+            recommendations.extend(shooting_drills)
+            recommendations.extend(passing_drills)
+            recommendations.extend(defense_drills)
+            recommendations.extend(conditioning_drills)
+
+        elif position_group == 'Forward':
+            # Forwards: 2 Shooting + 1 Defense + 1 Ball-Handling + 1 Conditioning + 1 Passing
+            shooting_drills = get_drills_by_category('Shooting', 'All', limit=2)
+            defense_drills = get_drills_by_category('Defense', 'All', limit=1)
+            ballhandling_drills = get_drills_by_category('Ball-Handling', 'Guard', limit=1)
+            conditioning_drills = get_drills_by_category('Conditioning', 'All', limit=1)
+            passing_drills = get_drills_by_category('Passing', 'All', limit=1)
+
+            for drill in shooting_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Modern forwards need to stretch the floor with consistent shooting.'})
+            for drill in defense_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Versatile forwards must be strong on both ends.'})
+            for drill in ballhandling_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Ball-handling skills make forwards more versatile.'})
+            for drill in conditioning_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'College basketball demands elite conditioning.'})
+            for drill in passing_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Forwards who can pass create opportunities for teammates.'})
+
+            recommendations.extend(shooting_drills)
+            recommendations.extend(defense_drills)
+            recommendations.extend(ballhandling_drills)
+            recommendations.extend(conditioning_drills)
+            recommendations.extend(passing_drills)
+
+        elif position_group == 'Big':
+            # Centers/Bigs: 2 Defense + 2 Conditioning + 1 Shooting + 1 Passing + 1 Ball-Handling
+            defense_drills = get_drills_by_category('Defense', 'Forward', limit=2)
+            conditioning_drills = get_drills_by_category('Conditioning', 'All', limit=2)
+            shooting_drills = get_drills_by_category('Shooting', 'All', limit=1)
+            passing_drills = get_drills_by_category('Passing', 'All', limit=1)
+            ballhandling_drills = get_drills_by_category('Ball-Handling', 'Guard', limit=1)
+
+            for drill in defense_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Interior defense and rebounding are your primary value.'})
+            for drill in conditioning_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Bigs need elite conditioning to run the floor.'})
+            for drill in shooting_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Developing a mid-range shot makes you harder to guard.'})
+            for drill in passing_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Bigs who can pass create offensive opportunities.'})
+            for drill in ballhandling_drills:
+                reasons.append({'drill_id': drill['id'], 'reason': 'Basic ball-handling helps you avoid turnovers.'})
+
+            recommendations.extend(defense_drills)
+            recommendations.extend(conditioning_drills)
+            recommendations.extend(shooting_drills)
+            recommendations.extend(passing_drills)
+            recommendations.extend(ballhandling_drills)
+
+        is_generic = True
+
+    else:
+        # Personalized recommendations based on stats
+        print(f"✅ Generating personalized recommendations for {position_group}: ppg={ppg}, apg={apg}, fg%={fg_percent}")
+
+        # Rule 1: Shooting (if poor FG%)
+        if fg_percent < 40:
+            shooting_drills = get_drills_by_category('Shooting', position_group, limit=2)
+            for drill in shooting_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': f'Your FG% ({fg_percent:.1f}%) is below 40%. Improving shooting mechanics will boost scoring efficiency.'
+                })
+            recommendations.extend(shooting_drills)
+
+        # Rule 2: Passing (for guards with low assists)
+        if position_group == 'Guard' and apg < 3:
+            passing_drills = get_drills_by_category('Passing', 'Guard', limit=2)
+            for drill in passing_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': f'As a guard averaging {apg:.1f} APG, improving playmaking will make you more valuable to college coaches.'
+                })
+            recommendations.extend(passing_drills)
+
+        # Rule 3: Ball-Handling (all guards)
+        if position_group == 'Guard':
+            ballhandling_drills = get_drills_by_category('Ball-Handling', 'Guard', limit=2)
+            for drill in ballhandling_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': 'Elite ball-handling is essential for guards at every college level.'
+                })
+            recommendations.extend(ballhandling_drills)
+
+        # Rule 4: Forwards - balanced approach
+        if position_group == 'Forward':
+            defense_drills = get_drills_by_category('Defense', 'All', limit=1)
+            shooting_drills = get_drills_by_category('Shooting', 'All', limit=1)
+
+            for drill in defense_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': 'Versatile forwards must be strong on both ends. Defense wins playing time.'
+                })
+
+            for drill in shooting_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': 'Modern forwards need to stretch the floor with consistent shooting.'
+                })
+
+            recommendations.extend(defense_drills)
+            recommendations.extend(shooting_drills)
+
+        # Rule 5: Centers/Bigs - interior focus
+        if position_group == 'Big':
+            defense_drills = get_drills_by_category('Defense', position_group, limit=1)
+            for drill in defense_drills:
+                reasons.append({
+                    'drill_id': drill['id'],
+                    'reason': 'Interior defense and rebounding are your primary value at the college level.'
+                })
+            recommendations.extend(defense_drills)
+
+        # Rule 6: ALWAYS include conditioning
+        conditioning_drills = get_drills_by_category('Conditioning', 'All', limit=1)
+        for drill in conditioning_drills:
+            reasons.append({
+                'drill_id': drill['id'],
+                'reason': 'College basketball demands elite conditioning. Players who can sustain intensity earn minutes.'
+            })
+        recommendations.extend(conditioning_drills)
+
+        is_generic = False
+
+    # Ensure we have 5-7 drills (fill gaps if needed)
+    if len(recommendations) < 5:
+        print(f"⚠️ Only {len(recommendations)} drills, adding fillers to reach minimum")
+        # Add general drills to reach minimum
+        filler_drills = get_drills_by_category('Defense', 'All', limit=5 - len(recommendations))
+        for drill in filler_drills:
+            reasons.append({
+                'drill_id': drill['id'],
+                'reason': 'Well-rounded players excel at multiple skills.'
+            })
+        recommendations.extend(filler_drills)
+
+    # Limit to 7 drills max
+    recommendations = recommendations[:7]
+
+    # Match reasons to final drill list
+    reason_map = {r['drill_id']: r['reason'] for r in reasons}
+
+    # Format response
+    formatted_drills = []
+    for drill in recommendations:
+        formatted_drills.append(DrillRecommendation(
+            id=drill['id'],
+            name=drill['name'],
+            description=drill['description'],
+            category=drill['category'],
+            difficulty=drill.get('difficulty'),
+            position_focus=drill.get('position_focus'),
+            video_url=drill.get('video_url'),
+            created_at=drill['created_at'],
+            why_recommended=reason_map.get(drill['id'], 'Recommended for your development.')
+        ))
+
+    return formatted_drills, is_generic
+
+# ============================================
+# TRAINING DRILL RECOMMENDATION ENDPOINT
+# ============================================
+
+@app.post("/api/drills/recommend", response_model=DrillRecommendationResponse)
+def recommend_drills(request: DrillRecommendationRequest):
+    """
+    POST /api/drills/recommend
+
+    Get personalized drill recommendations based on user stats.
+
+    Accepts either:
+    - user_id: Fetch stats from database
+    - Direct stats: position, ppg, apg, rpg, fg_percent
+
+    Returns: 5-7 personalized drills with explanations
+    """
+    try:
+        print(f"✅ Received drill recommendation request: {request}")
+
+        # Step 1: Get user stats (either from DB or direct input)
+        if request.user_id:
+            user_id_str = str(request.user_id).lower()
+
+            # Fetch user profile for position and target_division
+            profile_result = supabase.table("user_profiles").select("*").eq("user_id", user_id_str).execute()
+            if not profile_result.data:
+                raise HTTPException(status_code=404, detail="User profile not found")
+            profile = profile_result.data[0]
+
+            position = profile.get('position')
+            if not position:
+                raise HTTPException(status_code=400, detail="User profile missing position field")
+
+            target_division = profile.get('target_division')
+
+            # Fetch user stats (if available)
+            stats_result = supabase.table("user_stats").select("*").eq("user_id", user_id_str).execute()
+
+            if not stats_result.data:
+                # No stats - provide generic recommendations
+                print(f"⚠️ User {user_id_str} has no stats. Providing generic recommendations.")
+                ppg = 0
+                apg = 0
+                rpg = 0
+                fg_percent = 0
+                is_generic = True
+            else:
+                # Has stats - provide personalized recommendations
+                stats = stats_result.data[0]
+                ppg = stats.get('ppg', 0) or 0
+                apg = stats.get('apg', 0) or 0
+                rpg = stats.get('rpg', 0) or 0
+                fg_percent = stats.get('fg_percent', 0) or 0
+                is_generic = False
+
+        else:
+            # Use direct input
+            position = request.position
+            ppg = request.ppg or 0
+            apg = request.apg or 0
+            rpg = request.rpg or 0
+            fg_percent = request.fg_percent or 0
+            target_division = request.target_division
+            is_generic = False
+
+        # Validate required fields
+        if not position:
+            raise HTTPException(status_code=400, detail="Position is required for drill recommendations")
+
+        print(f"✅ Generating recommendations for: position={position}, ppg={ppg}, apg={apg}, rpg={rpg}, fg%={fg_percent}, generic={is_generic}")
+
+        # Step 2: Run recommendation algorithm
+        recommended_drills, is_generic_flag = get_drill_recommendations(
+            position=position,
+            ppg=ppg,
+            apg=apg,
+            rpg=rpg,
+            fg_percent=fg_percent,
+            target_division=target_division,
+            is_generic=is_generic
+        )
+
+        print(f"✅ Generated {len(recommended_drills)} drill recommendations (generic={is_generic_flag})")
+
+        return DrillRecommendationResponse(
+            drills=recommended_drills,
+            total_count=len(recommended_drills),
+            is_generic=is_generic_flag
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error recommending drills: {e}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))

@@ -15,7 +15,7 @@ class TrainingService {
         rpg: Double? = nil,
         fgPercent: Double? = nil,
         targetDivision: Division? = nil
-    ) async throws -> [TrainingDrill] {
+    ) async throws -> (drills: [TrainingDrill], isGeneric: Bool) {
         struct DrillRecommendationRequest: Codable {
             let userId: UUID?
             let position: String?
@@ -38,6 +38,14 @@ class TrainingService {
 
         struct DrillRecommendationResponse: Codable {
             let drills: [TrainingDrill]
+            let totalCount: Int
+            let isGeneric: Bool
+
+            enum CodingKeys: String, CodingKey {
+                case drills
+                case totalCount = "total_count"
+                case isGeneric = "is_generic"
+            }
         }
 
         let request = DrillRecommendationRequest(
@@ -56,6 +64,6 @@ class TrainingService {
             body: request
         )
 
-        return response.drills
+        return (drills: response.drills, isGeneric: response.isGeneric)
     }
 }
