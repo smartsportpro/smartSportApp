@@ -9,6 +9,7 @@ struct TrainingDrill: Codable, Identifiable {
     var positionFocus: PositionFocus?
     var videoUrl: String?
     let createdAt: Date
+    var whyRecommended: String?  // Personalized explanation for why this drill was recommended
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -19,6 +20,7 @@ struct TrainingDrill: Codable, Identifiable {
         case positionFocus = "position_focus"
         case videoUrl = "video_url"
         case createdAt = "created_at"
+        case whyRecommended = "why_recommended"
     }
 }
 
