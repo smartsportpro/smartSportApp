@@ -15,6 +15,7 @@ struct MatchResult: Codable, Identifiable {
     let hsFgPercent: Double?
     let hs3pPercent: Double?
     let photoUrl: String?
+    let videoUrl: String?
 
     var id: UUID { playerId }
 
@@ -33,6 +34,7 @@ struct MatchResult: Codable, Identifiable {
         case hsFgPercent = "hs_fg_percent"
         case hs3pPercent = "hs_3p_percent"
         case photoUrl = "photo_url"
+        case videoUrl = "video_url"
     }
 
     var heightFeet: Int {
@@ -52,6 +54,26 @@ struct MatchResult: Codable, Identifiable {
     }
 }
 
+struct UserStatsSnapshot: Codable {
+    let ppg: Double?
+    let apg: Double?
+    let rpg: Double?
+    let fgPercent: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case ppg
+        case apg
+        case rpg
+        case fgPercent = "fg_percent"
+    }
+}
+
 struct MatchResponse: Codable {
     let matches: [MatchResult]
+    let userStats: UserStatsSnapshot?
+
+    enum CodingKeys: String, CodingKey {
+        case matches
+        case userStats = "user_stats"
+    }
 }

@@ -15,10 +15,10 @@ class StatsService {
         )
     }
 
-    func getUserStats(userId: UUID) async throws -> (games: [GameStats], seasonAverages: UserStats) {
+    func getUserStats(userId: UUID) async throws -> (games: [GameStats], seasonAverages: UserStats?) {
         struct StatsResponse: Codable {
             let games: [GameStats]
-            let seasonAverages: UserStats
+            let seasonAverages: UserStats?
 
             enum CodingKeys: String, CodingKey {
                 case games

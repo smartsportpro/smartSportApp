@@ -69,7 +69,7 @@ class GameStats(BaseModel):
     steals: Optional[int] = None
     blocks: Optional[int] = None
     fg_percent: Optional[float] = None
-    three_p_percent: Optional[float] = None
+    three_percent: Optional[float] = None
 
 class MatchRequest(BaseModel):
     user_id: Optional[UUID] = None
@@ -97,6 +97,19 @@ class MatchResult(BaseModel):
     hs_fg_percent: Optional[float] = None
     hs_3p_percent: Optional[float] = None
     photo_url: Optional[str] = None
+    video_url: Optional[str] = None
+
+class UserStatsSnapshot(BaseModel):
+    """User's stats for comparison in match results"""
+    ppg: Optional[float] = None
+    apg: Optional[float] = None
+    rpg: Optional[float] = None
+    fg_percent: Optional[float] = None
+
+class MatchResponse(BaseModel):
+    """Response containing matches and optionally user's stats"""
+    matches: List[MatchResult]
+    user_stats: Optional[UserStatsSnapshot] = None
 
 class DrillRecommendationRequest(BaseModel):
     """Request for personalized drill recommendations"""
@@ -321,37 +334,14 @@ def get_user_stats(user_id: str):
 
         games = games_result.data
 
-        # Calculate season averages if there are games
-        if games and len(games) > 0:
-            total_games = len(games)
+        # Get user_stats record from database
+        stats_result = supabase.table("user_stats") \
+            .select("*") \
+            .eq("user_id", user_id) \
+            .execute()
 
-            # Calculate averages
-            ppg = round(sum(g.get('points', 0) or 0 for g in games) / total_games, 1)
-            rpg = round(sum(g.get('rebounds', 0) or 0 for g in games) / total_games, 1)
-            apg = round(sum(g.get('assists', 0) or 0 for g in games) / total_games, 1)
-
-            # Calculate average shooting percentages
-            fg_percents = [g.get('fg_percent', 0) or 0 for g in games if g.get('fg_percent') is not None]
-            fg_percent = round(sum(fg_percents) / len(fg_percents), 1) if fg_percents else 0.0
-
-            three_p_percents = [g.get('three_p_percent', 0) or 0 for g in games if g.get('three_p_percent') is not None]
-            three_p_percent = round(sum(three_p_percents) / len(three_p_percents), 1) if three_p_percents else 0.0
-
-            season_averages = {
-                "ppg": ppg,
-                "rpg": rpg,
-                "apg": apg,
-                "fg_percent": fg_percent,
-                "three_p_percent": three_p_percent
-            }
-        else:
-            season_averages = {
-                "ppg": 0.0,
-                "rpg": 0.0,
-                "apg": 0.0,
-                "fg_percent": 0.0,
-                "three_p_percent": 0.0
-            }
+        # Return the actual user_stats record if it exists, otherwise None
+        season_averages = format_timestamps(stats_result.data[0]) if stats_result.data else None
 
         return {
             "season_averages": season_averages,
@@ -403,8 +393,8 @@ def add_game_stats(game_stats: GameStats):
             fg_percents = [g.get('fg_percent', 0) or 0 for g in games if g.get('fg_percent') is not None]
             fg_percent = round(sum(fg_percents) / len(fg_percents), 1) if fg_percents else 0.0
 
-            three_p_percents = [g.get('three_p_percent', 0) or 0 for g in games if g.get('three_p_percent') is not None]
-            three_p_percent = round(sum(three_p_percents) / len(three_p_percents), 1) if three_p_percents else 0.0
+            three_percents = [g.get('three_percent', 0) or 0 for g in games if g.get('three_percent') is not None]
+            three_percent = round(sum(three_percents) / len(three_percents), 1) if three_percents else 0.0
 
             stats_data = {
                 "user_id": user_id,
@@ -412,7 +402,7 @@ def add_game_stats(game_stats: GameStats):
                 "rpg": rpg,
                 "apg": apg,
                 "fg_percent": fg_percent,
-                "three_p_percent": three_p_percent
+                "three_percent": three_percent
             }
 
             # Check if user_stats exists
@@ -552,7 +542,7 @@ def encode_division(division: str) -> int:
     }
     return division_map.get(division, 2)  # Default to D3
 
-@app.post("/api/match", response_model=List[MatchResult])
+@app.post("/api/match", response_model=MatchResponse)
 def find_matches(request: MatchRequest):
     """
     Find top 5 similar college players using K-NN algorithm with division weighting.
@@ -738,14 +728,26 @@ def find_matches(request: MatchRequest):
                 hs_rpg=player.get('hs_senior_rpg'),
                 hs_fg_percent=player.get('hs_senior_fg_percent'),
                 hs_3p_percent=player.get('hs_senior_3p_percent'),
-                photo_url=player.get('photo_url')
+                photo_url=player.get('photo_url'),
+                video_url=player.get('video_url')
             ))
 
         print(f"✅ Returning top 5 matches:")
         for i, result in enumerate(results, 1):
             print(f"   {i}. {result.name} ({result.division}) - {result.similarity_score}% match")
 
-        return results
+        # Include user stats in response if user_id was provided
+        user_stats_snapshot = None
+        if request.user_id and user_data:
+            user_stats_snapshot = UserStatsSnapshot(
+                ppg=user_data.get('ppg'),
+                apg=user_data.get('apg'),
+                rpg=user_data.get('rpg'),
+                fg_percent=user_data.get('fg_percent')
+            )
+            print(f"✅ Including user stats in response: PPG={user_stats_snapshot.ppg}, APG={user_stats_snapshot.apg}, RPG={user_stats_snapshot.rpg}, FG%={user_stats_snapshot.fg_percent}")
+
+        return MatchResponse(matches=results, user_stats=user_stats_snapshot)
 
     except HTTPException:
         raise

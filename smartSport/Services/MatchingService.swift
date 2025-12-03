@@ -17,7 +17,7 @@ class MatchingService {
         rpg: Double? = nil,
         fgPercent: Double? = nil,
         targetDivision: Division? = nil
-    ) async throws -> [MatchResult] {
+    ) async throws -> (matches: [MatchResult], userStats: UserStatsSnapshot?) {
         struct MatchRequest: Codable {
             let userId: UUID?
             let heightInches: Int?
@@ -54,13 +54,13 @@ class MatchingService {
             targetDivision: targetDivision?.rawValue
         )
 
-        // Backend returns array directly, not wrapped in object
-        let matches: [MatchResult] = try await apiService.request(
+        // Backend returns MatchResponse with matches and userStats
+        let response: MatchResponse = try await apiService.request(
             endpoint: "/api/match",
             method: .post,
             body: request
         )
 
-        return matches
+        return (response.matches, response.userStats)
     }
 }

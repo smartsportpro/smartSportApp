@@ -17,7 +17,7 @@ struct UserStats: Codable, Identifiable {
         case rpg
         case apg
         case fgPercent = "fg_percent"
-        case threePPercent = "three_p_percent"
+        case threePPercent = "three_percent"
         case updatedAt = "updated_at"
     }
 }

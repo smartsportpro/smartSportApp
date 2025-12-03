@@ -15,10 +15,14 @@ class StatsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            print("📊 Loading stats for user: \(userId)")
             let result = try await statsService.getUserStats(userId: userId)
+            print("✅ Stats loaded successfully: \(result.games.count) games, seasonAverages: \(result.seasonAverages != nil)")
             games = result.games
             seasonAverages = result.seasonAverages
         } catch {
+            print("❌ Error loading stats: \(error)")
+            print("❌ Error type: \(type(of: error))")
             errorMessage = error.localizedDescription
         }
 
@@ -30,9 +34,13 @@ class StatsViewModel: ObservableObject {
         errorMessage = nil
 
         do {
+            print("📝 Adding game for user: \(game.userId)")
             try await statsService.addGameStats(game)
+            print("✅ Game added successfully")
             await loadStats(userId: game.userId)
         } catch {
+            print("❌ Error adding game: \(error)")
+            print("❌ Error type: \(type(of: error))")
             errorMessage = error.localizedDescription
         }
 

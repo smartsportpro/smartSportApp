@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor
 class MatchingViewModel: ObservableObject {
     @Published var matches: [MatchResult] = []
+    @Published var userStats: UserStatsSnapshot?
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -25,7 +26,7 @@ class MatchingViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            matches = try await matchingService.findMatches(
+            let result = try await matchingService.findMatches(
                 userId: userId,
                 heightInches: heightInches,
                 weightLbs: weightLbs,
@@ -36,6 +37,8 @@ class MatchingViewModel: ObservableObject {
                 fgPercent: fgPercent,
                 targetDivision: targetDivision
             )
+            matches = result.matches
+            userStats = result.userStats
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -17,6 +17,7 @@ struct CollegePlayer: Codable, Identifiable {
     var photoUrl: String?
     var videoAvailability: String?
     var youtubeSearchHint: String?
+    var videoUrl: String?
     var dataSource: String?
     var notes: String?
     let createdAt: Date
@@ -38,6 +39,7 @@ struct CollegePlayer: Codable, Identifiable {
         case photoUrl = "photo_url"
         case videoAvailability = "video_availability"
         case youtubeSearchHint = "youtube_search_hint"
+        case videoUrl = "video_url"
         case dataSource = "data_source"
         case notes
         case createdAt = "created_at"

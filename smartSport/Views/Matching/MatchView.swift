@@ -24,7 +24,7 @@ struct MatchView: View {
                 await viewModel.findMatches(userId: userId)
             }
             .sheet(item: $showingPlayerDetail) { player in
-                PlayerDetailView(player: player)
+                PlayerDetailView(player: player, userStats: viewModel.userStats)
             }
         }
     }
@@ -289,6 +289,7 @@ struct MatchResultCard: View {
 
 struct PlayerDetailView: View {
     let player: MatchResult
+    let userStats: UserStatsSnapshot?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -429,12 +430,32 @@ struct PlayerDetailView: View {
 
                         Divider()
 
-                        // Placeholder comparison table
+                        // Comparison table
                         VStack(spacing: 8) {
-                            comparisonRow(label: "PPG", yourValue: "--", theirValue: player.hsPpg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
-                            comparisonRow(label: "RPG", yourValue: "--", theirValue: player.hsRpg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
-                            comparisonRow(label: "APG", yourValue: "--", theirValue: player.hsApg.map { String(format: "%.1f", $0) } ?? "--", isWeaker: false)
-                            comparisonRow(label: "FG%", yourValue: "--", theirValue: player.hsFgPercent.map { String(format: "%.1f%%", $0) } ?? "--", isWeaker: false)
+                            comparisonRow(
+                                label: "PPG",
+                                yourValue: userStats?.ppg.map { String(format: "%.1f", $0) } ?? "--",
+                                theirValue: player.hsPpg.map { String(format: "%.1f", $0) } ?? "--",
+                                isWeaker: compareStats(yours: userStats?.ppg, theirs: player.hsPpg)
+                            )
+                            comparisonRow(
+                                label: "RPG",
+                                yourValue: userStats?.rpg.map { String(format: "%.1f", $0) } ?? "--",
+                                theirValue: player.hsRpg.map { String(format: "%.1f", $0) } ?? "--",
+                                isWeaker: compareStats(yours: userStats?.rpg, theirs: player.hsRpg)
+                            )
+                            comparisonRow(
+                                label: "APG",
+                                yourValue: userStats?.apg.map { String(format: "%.1f", $0) } ?? "--",
+                                theirValue: player.hsApg.map { String(format: "%.1f", $0) } ?? "--",
+                                isWeaker: compareStats(yours: userStats?.apg, theirs: player.hsApg)
+                            )
+                            comparisonRow(
+                                label: "FG%",
+                                yourValue: userStats?.fgPercent.map { String(format: "%.1f%%", $0) } ?? "--",
+                                theirValue: player.hsFgPercent.map { String(format: "%.1f%%", $0) } ?? "--",
+                                isWeaker: compareStats(yours: userStats?.fgPercent, theirs: player.hsFgPercent)
+                            )
                         }
                     }
                     .padding()
@@ -444,19 +465,19 @@ struct PlayerDetailView: View {
                     .padding(.horizontal)
 
                     // Watch Film
-                    VStack(spacing: 12) {
-                        Text("Watch Film")
-                            .font(.headline)
+                    if let videoUrl = player.videoUrl, !videoUrl.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Watch Film")
+                                .font(.headline)
 
-                        Text("Coming Soon")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            VideoCard(videoUrl: videoUrl, playerName: player.name)
+                        }
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(16)
+                        .padding(.horizontal)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(16)
-                    .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
@@ -484,6 +505,14 @@ struct PlayerDetailView: View {
         }
     }
 
+    private func compareStats(yours: Double?, theirs: Double?) -> Bool {
+        // Returns true if your stat is weaker (lower) than theirs
+        guard let yourStat = yours, let theirStat = theirs else {
+            return false
+        }
+        return yourStat < theirStat
+    }
+
     private func comparisonRow(label: String, yourValue: String, theirValue: String, isWeaker: Bool) -> some View {
         HStack {
             Text(label)
@@ -508,6 +537,96 @@ struct PlayerDetailView: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Video Card Component
+
+struct VideoCard: View {
+    let videoUrl: String
+    let playerName: String
+
+    @State private var videoID: String = ""
+    @State private var thumbnailUrl: String = ""
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // YouTube Thumbnail
+            AsyncImage(url: URL(string: thumbnailUrl)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                ZStack {
+                    Color.gray.opacity(0.3)
+                    Image(systemName: "play.rectangle.fill")
+                        .font(.largeTitle)
+                        .foregroundColor(.white.opacity(0.7))
+                }
+            }
+            .frame(width: 160, height: 90)
+            .cornerRadius(8)
+
+            // Video Info
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(playerName) Highlights")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .lineLimit(2)
+
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.caption2)
+                    Text("Individual Highlights")
+                        .font(.caption)
+                }
+                .foregroundColor(.secondary)
+            }
+
+            Spacer()
+
+            // Play Button
+            Image(systemName: "play.circle.fill")
+                .font(.title)
+                .foregroundColor(.blue)
+        }
+        .padding(12)
+        .background(Color(.systemBackground))
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.1), radius: 4)
+        .onTapGesture {
+            openVideo()
+        }
+        .onAppear {
+            extractVideoMetadata()
+        }
+    }
+
+    private func extractVideoMetadata() {
+        // Extract YouTube video ID from various URL formats
+        let patterns = [
+            "(?:youtube\\.com\\/watch\\?v=|youtu\\.be\\/)([a-zA-Z0-9_-]{11})",
+            "youtube\\.com\\/embed\\/([a-zA-Z0-9_-]{11})"
+        ]
+
+        for pattern in patterns {
+            if let regex = try? NSRegularExpression(pattern: pattern),
+               let match = regex.firstMatch(in: videoUrl, range: NSRange(videoUrl.startIndex..., in: videoUrl)),
+               let videoIDRange = Range(match.range(at: 1), in: videoUrl) {
+                videoID = String(videoUrl[videoIDRange])
+                thumbnailUrl = "https://img.youtube.com/vi/\(videoID)/hqdefault.jpg"
+                return
+            }
+        }
+
+        // Fallback thumbnail if parsing fails
+        thumbnailUrl = ""
+    }
+
+    private func openVideo() {
+        if let url = URL(string: videoUrl) {
+            UIApplication.shared.open(url)
+        }
     }
 }
 

@@ -59,6 +59,12 @@ class APIService {
                 return date
             }
 
+            // Fallback: Simple date format "2025-12-03" (for game dates)
+            dateFormatter.dateFormat = "yyyy-MM-dd"
+            if let date = dateFormatter.date(from: dateString) {
+                return date
+            }
+
             // Fallback: ISO8601 with fractional seconds and timezone
             let fractionalFormatter = ISO8601DateFormatter()
             fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
