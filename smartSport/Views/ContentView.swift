@@ -51,7 +51,7 @@ struct ContentView: View {
                 }
                 .tag(4)
         }
-        .tint(.orange) // Orange accent color for selected tab
+        .tint(.primaryOrange) // Orange accent color for selected tab
     }
 }
 

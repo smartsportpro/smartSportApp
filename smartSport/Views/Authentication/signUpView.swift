@@ -11,18 +11,18 @@ struct signUpView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: Spacing.xl) {
                 Text("Smart Sport")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .padding(.top, 60)
                     .padding(.bottom, 40)
 
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.lg) {
                     TextField("Email", text: $email)
                         .padding()
                         .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .cornerRadius(CornerRadius.input)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .textContentType(.emailAddress)
@@ -30,12 +30,12 @@ struct signUpView: View {
                     SecureField("Password", text: $password)
                         .padding()
                         .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .cornerRadius(CornerRadius.input)
                         .textContentType(.newPassword)
 
                     Text("Password must be at least 6 characters")
                         .font(.caption)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal)
@@ -45,27 +45,21 @@ struct signUpView: View {
                 } label: {
                     if authViewModel.isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .orange))
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     } else {
                         Text("Sign Up")
-                            .frame(maxWidth: .infinity)
-                            .padding()
                     }
                 }
-                .background(isValidInput ? Color.black : Color.gray)
-                .foregroundColor(.orange)
-                .cornerRadius(8)
+                .buttonStyle(PrimaryButtonStyle(isDisabled: !isValidInput))
                 .disabled(!isValidInput || authViewModel.isLoading)
                 .padding(.horizontal)
-                .padding(.top, 20)
+                .padding(.top, Spacing.xl)
 
                 Button {
                     dismiss()
                 } label: {
                     Text("Already have an account? Sign In")
-                        .foregroundColor(.black)
+                        .foregroundColor(.primaryOrange)
                         .underline()
                 }
                 .padding(.top, 10)
@@ -73,7 +67,7 @@ struct signUpView: View {
                 Spacer()
             }
             .padding()
-            .background(Color.orange.ignoresSafeArea())
+            .background(Color(.systemBackground).ignoresSafeArea())
             .alert("Error", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {}
             } message: {

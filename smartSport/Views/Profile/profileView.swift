@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @EnvironmentObject var authViewModel: AuthViewModel
     @State private var showEditSheet = false
     let userId: UUID
 
@@ -32,6 +33,17 @@ struct ProfileView: View {
             .navigationTitle(viewModel.profile?.name ?? "Profile")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        Task {
+                            await authViewModel.signOut()
+                        }
+                    } label: {
+                        Text("Sign Out")
+                            .foregroundColor(.red)
+                    }
+                }
+
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showEditSheet = true

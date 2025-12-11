@@ -9,20 +9,12 @@
 /* Begin PBXBuildFile section */
 		A9D230C32EB903B600B480BD /* Algorithms in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C22EB903B600B480BD /* Algorithms */; };
 		A9D230C52EB9067700B480BD /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = A9D230C62EB9067700B480BD /* Supabase */; };
-		8B08CFAE19F141B0A447B92F /* MatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF4D7CB563F84218A83D948B /* MatchView.swift */; };
-		4A5B9430E7034AEA97663011 /* TrainingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F7747BC893B4FA3BED608A9 /* TrainingView.swift */; };
-				B8D4C67B07EA4EB7BF2C6465 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 720414C3275245D09BA99C2E /* HomeView.swift */; };
-		3A998BFBC3ED4EBAB59D8A68 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01585FA57CC44AC89FEC0B8F /* HomeViewModel.swift */; };
-		/* End PBXBuildFile section */
+/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		A9A13B0E2E9812E200222A3C /* smartSport.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = smartSport.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D81712A02EBB01110065737C /* Secrets.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Secrets.xcconfig; sourceTree = "<group>"; };
-		AF4D7CB563F84218A83D948B /* MatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MatchView.swift; sourceTree = "<group>"; };
-		8F7747BC893B4FA3BED608A9 /* TrainingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingView.swift; sourceTree = "<group>"; };
-				720414C3275245D09BA99C2E /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
-		01585FA57CC44AC89FEC0B8F /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeViewModel.swift; sourceTree = "<group>"; };
-		/* End PBXFileReference section */
+/* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		D81712A62EBB0CBF0065737C /* Exceptions for "smartSport" folder in "smartSport" target */ = {
@@ -291,6 +283,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"smartSport/Preview Content\"";
+				DEVELOPMENT_TEAM = 5545XDCPCN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -321,6 +314,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"smartSport/Preview Content\"";
+				DEVELOPMENT_TEAM = 5545XDCPCN;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

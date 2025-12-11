@@ -9,18 +9,18 @@ struct loginScreenView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
+            VStack(spacing: Spacing.xl) {
                 Text("Smart Sport")
                     .font(.largeTitle)
                     .fontWeight(.bold)
                     .padding(.top, 60)
                     .padding(.bottom, 40)
 
-                VStack(spacing: 16) {
+                VStack(spacing: Spacing.lg) {
                     TextField("Email", text: $email)
                         .padding()
                         .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .cornerRadius(CornerRadius.input)
                         .keyboardType(.emailAddress)
                         .autocapitalization(.none)
                         .textContentType(.emailAddress)
@@ -28,7 +28,7 @@ struct loginScreenView: View {
                     SecureField("Password", text: $password)
                         .padding()
                         .background(Color(.systemGray6))
-                        .cornerRadius(8)
+                        .cornerRadius(CornerRadius.input)
                         .textContentType(.password)
                 }
                 .padding(.horizontal)
@@ -38,27 +38,21 @@ struct loginScreenView: View {
                 } label: {
                     if authViewModel.isLoading {
                         ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .orange))
-                            .frame(maxWidth: .infinity)
-                            .padding()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     } else {
                         Text("Login")
-                            .frame(maxWidth: .infinity)
-                            .padding()
                     }
                 }
-                .background(isValidInput ? Color.black : Color.gray)
-                .foregroundColor(.orange)
-                .cornerRadius(8)
+                .buttonStyle(PrimaryButtonStyle(isDisabled: !isValidInput))
                 .disabled(!isValidInput || authViewModel.isLoading)
                 .padding(.horizontal)
-                .padding(.top, 20)
+                .padding(.top, Spacing.xl)
 
                 Button {
                     showSignUp = true
                 } label: {
                     Text("Don't have an account? Sign Up")
-                        .foregroundColor(.black)
+                        .foregroundColor(.primaryOrange)
                         .underline()
                 }
                 .padding(.top, 10)
@@ -66,7 +60,7 @@ struct loginScreenView: View {
                 Spacer()
             }
             .padding()
-            .background(Color.orange.ignoresSafeArea())
+            .background(Color(.systemBackground).ignoresSafeArea())
             .alert("Error", isPresented: $showErrorAlert) {
                 Button("OK", role: .cancel) {}
             } message: {
