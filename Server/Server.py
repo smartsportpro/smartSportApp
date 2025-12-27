@@ -9,6 +9,37 @@ from dotenv import load_dotenv
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import StandardScaler
 import numpy as np
+from typing import Dict
+import random
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+import time
+from functools import lru_cache
+
+# ==================== SUPABASE RETRY WRAPPER ====================
+
+def supabase_retry(query_func, retries=3, delay=1):
+    """
+    Retry wrapper for Supabase operations to handle network hiccups or timeouts.
+    """
+    for attempt in range(retries):
+        try:
+            return query_func()
+        except Exception as e:
+            print(f"⚠️ Supabase call failed (attempt {attempt+1}/{retries}): {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+            else:
+                raise
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -139,6 +170,13 @@ class DrillRecommendationResponse(BaseModel):
     drills: List[DrillRecommendation]
     total_count: int
     is_generic: bool = False  # True if user has no stats, recommendations are position-based only
+
+class VideoSearchRequest(BaseModel):
+    player_name: Optional[str] = None
+    high_school: Optional[str] = None
+    college_name: Optional[str] = None
+    division_level: Optional[str] = None
+    position: Optional[str] = None
 
 @app.post("/api/profile")
 def save_profile(profile: Profile):
@@ -325,22 +363,25 @@ def get_user_stats(user_id: str):
     Get all games and season averages for a user
     """
     try:
-        # Get all games for the user, sorted by date DESC
-        games_result = supabase.table("game_stats") \
-            .select("*") \
-            .eq("user_id", user_id) \
-            .order("date", desc=True) \
+        # Step 1: Safely get all games for the user (with retry)
+        games_result = supabase_retry(lambda:
+            supabase.table("game_stats")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("date", desc=True)
             .execute()
+        )
 
         games = games_result.data
 
-        # Get user_stats record from database
-        stats_result = supabase.table("user_stats") \
-            .select("*") \
-            .eq("user_id", user_id) \
+        # Step 2: Safely get the user_stats record (with retry)
+        stats_result = supabase_retry(lambda:
+            supabase.table("user_stats")
+            .select("*")
+            .eq("user_id", user_id)
             .execute()
+        )
 
-        # Return the actual user_stats record if it exists, otherwise None
         season_averages = format_timestamps(stats_result.data[0]) if stats_result.data else None
 
         return {
@@ -352,40 +393,35 @@ def get_user_stats(user_id: str):
         print(f"❌ Error getting user stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/api/stats")
 def add_game_stats(game_stats: GameStats):
     """
     Add a new game stat record and automatically update user's season averages
     """
     try:
-        # Convert Pydantic model to dict, excluding None values
         data = game_stats.dict(exclude_none=True)
-
-        # Convert UUID to string for Supabase
         user_id = str(data['user_id'])
         data['user_id'] = user_id
-        # Convert date to string
         data['date'] = str(data['date'])
 
-        # Insert into game_stats table
-        result = supabase.table("game_stats").insert(data).execute()
+        # Safely insert new record
+        result = supabase_retry(lambda:
+            supabase.table("game_stats").insert(data).execute()
+        )
 
         if not result.data:
             raise HTTPException(status_code=500, detail="Failed to create game record")
 
-        # Automatically update season averages in user_stats table
-        # Get all games for this user
-        all_games = supabase.table("game_stats") \
-            .select("*") \
-            .eq("user_id", user_id) \
-            .execute()
+        # Safely get all games for this user
+        all_games = supabase_retry(lambda:
+            supabase.table("game_stats").select("*").eq("user_id", user_id).execute()
+        )
 
         games = all_games.data
 
         if games and len(games) > 0:
             total_games = len(games)
-
-            # Calculate season averages
             ppg = round(sum(g.get('points', 0) or 0 for g in games) / total_games, 1)
             rpg = round(sum(g.get('rebounds', 0) or 0 for g in games) / total_games, 1)
             apg = round(sum(g.get('assists', 0) or 0 for g in games) / total_games, 1)
@@ -406,21 +442,23 @@ def add_game_stats(game_stats: GameStats):
             }
 
             # Check if user_stats exists
-            existing_stats = supabase.table("user_stats") \
-                .select("*") \
-                .eq("user_id", user_id) \
-                .execute()
+            existing_stats = supabase_retry(lambda:
+                supabase.table("user_stats").select("*").eq("user_id", user_id).execute()
+            )
 
             if existing_stats.data and len(existing_stats.data) > 0:
                 # Update existing stats
-                supabase.table("user_stats") \
-                    .update(stats_data) \
-                    .eq("user_id", user_id) \
+                supabase_retry(lambda:
+                    supabase.table("user_stats")
+                    .update(stats_data)
+                    .eq("user_id", user_id)
                     .execute()
+                )
                 print(f"✅ Updated season averages for user {user_id}")
             else:
-                # Insert new stats
-                supabase.table("user_stats").insert(stats_data).execute()
+                supabase_retry(lambda:
+                    supabase.table("user_stats").insert(stats_data).execute()
+                )
                 print(f"✅ Created season averages for user {user_id}")
 
         return {
@@ -434,45 +472,46 @@ def add_game_stats(game_stats: GameStats):
         print(f"❌ Error adding game stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.delete("/api/stats/{game_id}")
 def delete_game_stats(game_id: str):
     """
     Delete a game record and automatically update user's season averages
     """
     try:
-        # First, get the game to know which user to update
-        game_to_delete = supabase.table("game_stats") \
-            .select("user_id") \
-            .eq("id", game_id) \
+        # Step 1: Get game info safely
+        game_to_delete = supabase_retry(lambda:
+            supabase.table("game_stats")
+            .select("user_id")
+            .eq("id", game_id)
             .execute()
+        )
 
         if not game_to_delete.data:
             raise HTTPException(status_code=404, detail="Game record not found")
 
         user_id = game_to_delete.data[0]['user_id']
 
-        # Delete from game_stats
-        result = supabase.table("game_stats") \
-            .delete() \
-            .eq("id", game_id) \
+        # Step 2: Delete safely
+        result = supabase_retry(lambda:
+            supabase.table("game_stats")
+            .delete()
+            .eq("id", game_id)
             .execute()
+        )
 
         if not result.data:
             raise HTTPException(status_code=404, detail="Game record not found")
 
-        # Recalculate season averages after deletion
-        # Get remaining games for this user
-        remaining_games = supabase.table("game_stats") \
-            .select("*") \
-            .eq("user_id", user_id) \
-            .execute()
+        # Step 3: Recalculate averages
+        remaining_games = supabase_retry(lambda:
+            supabase.table("game_stats").select("*").eq("user_id", user_id).execute()
+        )
 
         games = remaining_games.data
 
         if games and len(games) > 0:
             total_games = len(games)
-
-            # Calculate new season averages
             ppg = round(sum(g.get('points', 0) or 0 for g in games) / total_games, 1)
             rpg = round(sum(g.get('rebounds', 0) or 0 for g in games) / total_games, 1)
             apg = round(sum(g.get('assists', 0) or 0 for g in games) / total_games, 1)
@@ -491,14 +530,11 @@ def delete_game_stats(game_id: str):
                 "three_p_percent": three_p_percent
             }
 
-            # Update user_stats
-            supabase.table("user_stats") \
-                .update(stats_data) \
-                .eq("user_id", user_id) \
-                .execute()
+            supabase_retry(lambda:
+                supabase.table("user_stats").update(stats_data).eq("user_id", user_id).execute()
+            )
             print(f"✅ Recalculated season averages after deletion for user {user_id}")
         else:
-            # No games left, reset stats to zero
             stats_data = {
                 "ppg": 0.0,
                 "rpg": 0.0,
@@ -506,10 +542,9 @@ def delete_game_stats(game_id: str):
                 "fg_percent": 0.0,
                 "three_p_percent": 0.0
             }
-            supabase.table("user_stats") \
-                .update(stats_data) \
-                .eq("user_id", user_id) \
-                .execute()
+            supabase_retry(lambda:
+                supabase.table("user_stats").update(stats_data).eq("user_id", user_id).execute()
+            )
             print(f"✅ Reset season averages to zero for user {user_id}")
 
         return {"status": "deleted"}
@@ -519,6 +554,15 @@ def delete_game_stats(game_id: str):
     except Exception as e:
         print(f"❌ Error deleting game stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+    
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    print(f"❌ Global Error: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": str(exc)}
+    )
 
 # ==================== PLAYER MATCHING ====================
 
@@ -568,16 +612,17 @@ def find_matches(request: MatchRequest):
             user_id_str = str(request.user_id).lower()
 
             # Fetch profile
-            profile_result = supabase.table("user_profiles").select("*").eq("user_id", user_id_str).execute()
+            profile_result = supabase_retry(lambda: supabase.table("user_profiles").select("*").eq("user_id", user_id_str).execute())
             profile = profile_result.data[0] if profile_result.data else None
 
             # Fetch measurables
-            measurables_result = supabase.table("user_measurables").select("*").eq("user_id", user_id_str).execute()
+            measurables_result = supabase_retry(lambda: supabase.table("user_measurables").select("*").eq("user_id", user_id_str).execute())
             measurables = measurables_result.data[0] if measurables_result.data else None
 
             # Fetch stats
-            stats_result = supabase.table("user_stats").select("*").eq("user_id", user_id_str).execute()
+            stats_result = supabase_retry(lambda: supabase.table("user_stats").select("*").eq("user_id", user_id_str).execute())
             stats = stats_result.data[0] if stats_result.data else None
+
 
             if profile and measurables and stats:
                 user_data = {
@@ -1153,3 +1198,98 @@ def recommend_drills(request: DrillRecommendationRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== VIDEO SEARCH API ====================
+
+video_cache: Dict[str, list] = {}  # Cache to store recent video search results
+
+
+def build_search_keywords(req: VideoSearchRequest):
+    """Build a list of search keywords based on user input"""
+    return [k for k in [
+        req.player_name,
+        req.high_school,
+        req.college_name,
+        req.division_level,
+        req.position
+    ] if k]
+
+
+def mock_youtube_search(keywords: list):
+    """Generate mock video search results (simulating YouTube search)"""
+    query = " ".join(keywords)
+    results = []
+    for i in range(3):
+        results.append({
+            "title": f"{query} Highlight #{i+1}",
+            "thumbnail": f"https://img.youtube.com/vi/fake{i}/0.jpg",
+            "url": f"https://youtube.com/watch?v=fake{i}",
+            "video_type": "Mock"
+        })
+    return results
+
+def multi_tier_video_search(req: VideoSearchRequest):
+    """Implements a 5-tier fallback video search system"""
+    tiers = [
+        [req.player_name, "highlights"],  # Tier 1
+        [req.college_name, req.player_name, "highlights"],  # Tier 2
+        [req.high_school, "team", "highlights"],  # Tier 3
+        [req.college_name, "basketball", "team", "highlights"],  # Tier 4
+        [req.position, "basketball", "drills"]  # Tier 5 fallback
+    ]
+
+    for tier_num, keywords in enumerate(tiers, start=1):
+        keywords = [k for k in keywords if k]
+        if not keywords:
+            continue
+        print(f"🔍 Tier {tier_num}: Searching for {' '.join(keywords)}")
+        results = mock_youtube_search(keywords)
+        if results:
+            print(f"✅ Found {len(results)} videos in Tier {tier_num}")
+            return results
+    print("⚠️ No videos found in any tier")
+    return []
+
+
+@app.post("/api/videos/search")
+def search_videos(request: VideoSearchRequest):
+    """Search for player-related videos using tiered fallback system"""
+    try:
+        if not any([request.player_name, request.high_school, request.college_name, request.position]):
+            raise HTTPException(status_code=400, detail="No search parameters provided")
+
+        videos = multi_tier_video_search(request)
+
+        if not videos:
+            raise HTTPException(status_code=404, detail="No videos found")
+
+        seen = set()
+        final = []
+        for v in videos:
+            if v["url"] not in seen:
+                final.append(v)
+                seen.add(v["url"])
+
+        print(f"✅ Returning {len(final)} videos")
+        return {"videos": final}
+
+    except Exception as e:
+        print(f"❌ Video search error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/health")
+def health_check():
+    try:
+        supabase_retry(lambda: supabase.table("user_profiles").select("count", count="exact").limit(1).execute())
+        return {"status": "ok", "database": "connected"}
+    except Exception as e:
+        return {"status": "degraded", "database": "unreachable", "error": str(e)}
+
+@app.on_event("startup")
+async def check_system_health():
+    print("🩺 Checking Supabase connectivity...")
+    try:
+        supabase_retry(lambda: supabase.table("user_profiles").select("count", count="exact").limit(1).execute())
+        print("✅ Supabase connection OK")
+    except Exception as e:
+        print(f"❌ Supabase unavailable: {e}")
